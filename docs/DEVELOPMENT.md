@@ -4,7 +4,7 @@
 
 | Tool | Version | Notes |
 |------|---------|-------|
-| Go | 1.26+ (toolchain pinned to 1.27.0 in `go.mod`) | Older Go versions download the pinned toolchain automatically. |
+| Go | 1.26+ (toolchain pinned to 1.27.4 in `go.mod`) | Older Go versions download the pinned toolchain automatically. |
 | Docker + Compose | recent | Only for `make dev-up` (PostgreSQL, VictoriaMetrics). |
 | golangci-lint | v2.15.0 | `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0` |
 | make, git | any | |

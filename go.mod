@@ -2,7 +2,7 @@ module github.com/monirujjaman-dev/server-manager
 
 go 1.26.0
 
-toolchain go1.27.0
+toolchain go1.27.4
 
 require (
 	connectrpc.com/connect v1.21.0
