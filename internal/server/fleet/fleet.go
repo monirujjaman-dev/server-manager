@@ -30,13 +30,11 @@ func (r Revocations) IsRevoked(ctx context.Context, serial *big.Int) (bool, erro
 	return r.Q.CertificateRejected(ctx, serial.Text(16))
 }
 
-// Hooks implements gateway.Hooks on top of the servers table.
+// Hooks implements the connection-related gateway hooks on top of the servers table.
 type Hooks struct {
 	Q   *db.Queries
 	Log *slog.Logger
 }
-
-var _ gateway.Hooks = Hooks{}
 
 // OnHello records host facts and marks the server online. Unknown or revoked servers
 // are rejected.

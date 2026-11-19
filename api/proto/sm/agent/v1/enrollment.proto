@@ -32,4 +32,6 @@ message EnrollResponse {
   bytes ca_certificate = 4;
   // Agent gateway URL, e.g. https://cp.internal:8443. Empty if not configured.
   string agent_url = 5;
+  // Raw 32-byte Ed25519 public key that signs commands.
+  bytes command_public_key = 6;
 }

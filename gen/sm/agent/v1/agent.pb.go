@@ -120,6 +120,7 @@ type ConnectRequest struct {
 	//
 	//	*ConnectRequest_Hello
 	//	*ConnectRequest_Heartbeat
+	//	*ConnectRequest_CommandResult
 	Payload       isConnectRequest_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -180,6 +181,15 @@ func (x *ConnectRequest) GetHeartbeat() *Heartbeat {
 	return nil
 }
 
+func (x *ConnectRequest) GetCommandResult() *CommandResult {
+	if x != nil {
+		if x, ok := x.Payload.(*ConnectRequest_CommandResult); ok {
+			return x.CommandResult
+		}
+	}
+	return nil
+}
+
 type isConnectRequest_Payload interface {
 	isConnectRequest_Payload()
 }
@@ -192,9 +202,15 @@ type ConnectRequest_Heartbeat struct {
 	Heartbeat *Heartbeat `protobuf:"bytes,2,opt,name=heartbeat,proto3,oneof"`
 }
 
+type ConnectRequest_CommandResult struct {
+	CommandResult *CommandResult `protobuf:"bytes,3,opt,name=command_result,json=commandResult,proto3,oneof"`
+}
+
 func (*ConnectRequest_Hello) isConnectRequest_Payload() {}
 
 func (*ConnectRequest_Heartbeat) isConnectRequest_Payload() {}
+
+func (*ConnectRequest_CommandResult) isConnectRequest_Payload() {}
 
 // ConnectResponse is a message sent from the control plane to the agent.
 type ConnectResponse struct {
@@ -203,6 +219,7 @@ type ConnectResponse struct {
 	//
 	//	*ConnectResponse_Welcome
 	//	*ConnectResponse_HeartbeatAck
+	//	*ConnectResponse_Command
 	Payload       isConnectResponse_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -263,6 +280,15 @@ func (x *ConnectResponse) GetHeartbeatAck() *HeartbeatAck {
 	return nil
 }
 
+func (x *ConnectResponse) GetCommand() *Command {
+	if x != nil {
+		if x, ok := x.Payload.(*ConnectResponse_Command); ok {
+			return x.Command
+		}
+	}
+	return nil
+}
+
 type isConnectResponse_Payload interface {
 	isConnectResponse_Payload()
 }
@@ -275,9 +301,15 @@ type ConnectResponse_HeartbeatAck struct {
 	HeartbeatAck *HeartbeatAck `protobuf:"bytes,2,opt,name=heartbeat_ack,json=heartbeatAck,proto3,oneof"`
 }
 
+type ConnectResponse_Command struct {
+	Command *Command `protobuf:"bytes,3,opt,name=command,proto3,oneof"`
+}
+
 func (*ConnectResponse_Welcome) isConnectResponse_Payload() {}
 
 func (*ConnectResponse_HeartbeatAck) isConnectResponse_Payload() {}
+
+func (*ConnectResponse_Command) isConnectResponse_Payload() {}
 
 // Hello is the first message on every stream.
 type Hello struct {
@@ -493,8 +525,11 @@ type Welcome struct {
 	// How often the agent should send heartbeats.
 	HeartbeatInterval *durationpb.Duration   `protobuf:"bytes,2,opt,name=heartbeat_interval,json=heartbeatInterval,proto3" json:"heartbeat_interval,omitempty"`
 	ServerTime        *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=server_time,json=serverTime,proto3" json:"server_time,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Raw 32-byte Ed25519 public key that signs commands. Agents enrolled before this key
+	// existed store it on first sight; afterwards a different key is refused.
+	CommandPublicKey []byte `protobuf:"bytes,4,opt,name=command_public_key,json=commandPublicKey,proto3" json:"command_public_key,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Welcome) Reset() {
@@ -544,6 +579,13 @@ func (x *Welcome) GetHeartbeatInterval() *durationpb.Duration {
 func (x *Welcome) GetServerTime() *timestamppb.Timestamp {
 	if x != nil {
 		return x.ServerTime
+	}
+	return nil
+}
+
+func (x *Welcome) GetCommandPublicKey() []byte {
+	if x != nil {
+		return x.CommandPublicKey
 	}
 	return nil
 }
@@ -605,18 +647,20 @@ var File_sm_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_sm_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x17sm/agent/v1/agent.proto\x12\vsm.agent.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"+\n" +
+	"\x17sm/agent/v1/agent.proto\x12\vsm.agent.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x19sm/agent/v1/actions.proto\"+\n" +
 	"\x17RenewCertificateRequest\x12\x10\n" +
 	"\x03csr\x18\x01 \x01(\fR\x03csr\"G\n" +
 	"\x18RenewCertificateResponse\x12+\n" +
-	"\x11certificate_chain\x18\x01 \x03(\fR\x10certificateChain\"\x7f\n" +
+	"\x11certificate_chain\x18\x01 \x03(\fR\x10certificateChain\"\xc4\x01\n" +
 	"\x0eConnectRequest\x12*\n" +
 	"\x05hello\x18\x01 \x01(\v2\x12.sm.agent.v1.HelloH\x00R\x05hello\x126\n" +
-	"\theartbeat\x18\x02 \x01(\v2\x16.sm.agent.v1.HeartbeatH\x00R\theartbeatB\t\n" +
-	"\apayload\"\x90\x01\n" +
+	"\theartbeat\x18\x02 \x01(\v2\x16.sm.agent.v1.HeartbeatH\x00R\theartbeat\x12C\n" +
+	"\x0ecommand_result\x18\x03 \x01(\v2\x1a.sm.agent.v1.CommandResultH\x00R\rcommandResultB\t\n" +
+	"\apayload\"\xc2\x01\n" +
 	"\x0fConnectResponse\x120\n" +
 	"\awelcome\x18\x01 \x01(\v2\x14.sm.agent.v1.WelcomeH\x00R\awelcome\x12@\n" +
-	"\rheartbeat_ack\x18\x02 \x01(\v2\x19.sm.agent.v1.HeartbeatAckH\x00R\fheartbeatAckB\t\n" +
+	"\rheartbeat_ack\x18\x02 \x01(\v2\x19.sm.agent.v1.HeartbeatAckH\x00R\fheartbeatAck\x120\n" +
+	"\acommand\x18\x03 \x01(\v2\x14.sm.agent.v1.CommandH\x00R\acommandB\t\n" +
 	"\apayload\"X\n" +
 	"\x05Hello\x12#\n" +
 	"\ragent_version\x18\x01 \x01(\tR\fagentVersion\x12*\n" +
@@ -631,12 +675,13 @@ const file_sm_agent_v1_agent_proto_rawDesc = "" +
 	"\tboot_time\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\bbootTime\"R\n" +
 	"\tHeartbeat\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x04R\x03seq\x123\n" +
-	"\asent_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt\"\xad\x01\n" +
+	"\asent_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt\"\xdb\x01\n" +
 	"\aWelcome\x12\x1b\n" +
 	"\tserver_id\x18\x01 \x01(\tR\bserverId\x12H\n" +
 	"\x12heartbeat_interval\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x11heartbeatInterval\x12;\n" +
 	"\vserver_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"serverTime\"]\n" +
+	"serverTime\x12,\n" +
+	"\x12command_public_key\x18\x04 \x01(\fR\x10commandPublicKey\"]\n" +
 	"\fHeartbeatAck\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x04R\x03seq\x12;\n" +
 	"\vserver_time\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
@@ -670,29 +715,33 @@ var file_sm_agent_v1_agent_proto_goTypes = []any{
 	(*Heartbeat)(nil),                // 6: sm.agent.v1.Heartbeat
 	(*Welcome)(nil),                  // 7: sm.agent.v1.Welcome
 	(*HeartbeatAck)(nil),             // 8: sm.agent.v1.HeartbeatAck
-	(*timestamppb.Timestamp)(nil),    // 9: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),      // 10: google.protobuf.Duration
+	(*CommandResult)(nil),            // 9: sm.agent.v1.CommandResult
+	(*Command)(nil),                  // 10: sm.agent.v1.Command
+	(*timestamppb.Timestamp)(nil),    // 11: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),      // 12: google.protobuf.Duration
 }
 var file_sm_agent_v1_agent_proto_depIdxs = []int32{
 	4,  // 0: sm.agent.v1.ConnectRequest.hello:type_name -> sm.agent.v1.Hello
 	6,  // 1: sm.agent.v1.ConnectRequest.heartbeat:type_name -> sm.agent.v1.Heartbeat
-	7,  // 2: sm.agent.v1.ConnectResponse.welcome:type_name -> sm.agent.v1.Welcome
-	8,  // 3: sm.agent.v1.ConnectResponse.heartbeat_ack:type_name -> sm.agent.v1.HeartbeatAck
-	5,  // 4: sm.agent.v1.Hello.host:type_name -> sm.agent.v1.HostFacts
-	9,  // 5: sm.agent.v1.HostFacts.boot_time:type_name -> google.protobuf.Timestamp
-	9,  // 6: sm.agent.v1.Heartbeat.sent_at:type_name -> google.protobuf.Timestamp
-	10, // 7: sm.agent.v1.Welcome.heartbeat_interval:type_name -> google.protobuf.Duration
-	9,  // 8: sm.agent.v1.Welcome.server_time:type_name -> google.protobuf.Timestamp
-	9,  // 9: sm.agent.v1.HeartbeatAck.server_time:type_name -> google.protobuf.Timestamp
-	2,  // 10: sm.agent.v1.AgentService.Connect:input_type -> sm.agent.v1.ConnectRequest
-	0,  // 11: sm.agent.v1.AgentService.RenewCertificate:input_type -> sm.agent.v1.RenewCertificateRequest
-	3,  // 12: sm.agent.v1.AgentService.Connect:output_type -> sm.agent.v1.ConnectResponse
-	1,  // 13: sm.agent.v1.AgentService.RenewCertificate:output_type -> sm.agent.v1.RenewCertificateResponse
-	12, // [12:14] is the sub-list for method output_type
-	10, // [10:12] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	9,  // 2: sm.agent.v1.ConnectRequest.command_result:type_name -> sm.agent.v1.CommandResult
+	7,  // 3: sm.agent.v1.ConnectResponse.welcome:type_name -> sm.agent.v1.Welcome
+	8,  // 4: sm.agent.v1.ConnectResponse.heartbeat_ack:type_name -> sm.agent.v1.HeartbeatAck
+	10, // 5: sm.agent.v1.ConnectResponse.command:type_name -> sm.agent.v1.Command
+	5,  // 6: sm.agent.v1.Hello.host:type_name -> sm.agent.v1.HostFacts
+	11, // 7: sm.agent.v1.HostFacts.boot_time:type_name -> google.protobuf.Timestamp
+	11, // 8: sm.agent.v1.Heartbeat.sent_at:type_name -> google.protobuf.Timestamp
+	12, // 9: sm.agent.v1.Welcome.heartbeat_interval:type_name -> google.protobuf.Duration
+	11, // 10: sm.agent.v1.Welcome.server_time:type_name -> google.protobuf.Timestamp
+	11, // 11: sm.agent.v1.HeartbeatAck.server_time:type_name -> google.protobuf.Timestamp
+	2,  // 12: sm.agent.v1.AgentService.Connect:input_type -> sm.agent.v1.ConnectRequest
+	0,  // 13: sm.agent.v1.AgentService.RenewCertificate:input_type -> sm.agent.v1.RenewCertificateRequest
+	3,  // 14: sm.agent.v1.AgentService.Connect:output_type -> sm.agent.v1.ConnectResponse
+	1,  // 15: sm.agent.v1.AgentService.RenewCertificate:output_type -> sm.agent.v1.RenewCertificateResponse
+	14, // [14:16] is the sub-list for method output_type
+	12, // [12:14] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_sm_agent_v1_agent_proto_init() }
@@ -700,13 +749,16 @@ func file_sm_agent_v1_agent_proto_init() {
 	if File_sm_agent_v1_agent_proto != nil {
 		return
 	}
+	file_sm_agent_v1_actions_proto_init()
 	file_sm_agent_v1_agent_proto_msgTypes[2].OneofWrappers = []any{
 		(*ConnectRequest_Hello)(nil),
 		(*ConnectRequest_Heartbeat)(nil),
+		(*ConnectRequest_CommandResult)(nil),
 	}
 	file_sm_agent_v1_agent_proto_msgTypes[3].OneofWrappers = []any{
 		(*ConnectResponse_Welcome)(nil),
 		(*ConnectResponse_HeartbeatAck)(nil),
+		(*ConnectResponse_Command)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

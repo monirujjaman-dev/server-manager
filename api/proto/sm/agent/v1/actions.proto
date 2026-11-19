@@ -1,0 +1,228 @@
+syntax = "proto3";
+
+package sm.agent.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// ---------------------------------------------------------------------------
+// Command envelope
+//
+// The control plane serializes a CommandEnvelope, signs those exact bytes with its
+// Ed25519 command key, and sends both in a Command. The agent and the privileged helper
+// verify the signature over the bytes they received before decoding them, so no
+// canonical encoding is needed.
+// ---------------------------------------------------------------------------
+
+message CommandEnvelope {
+  // Job UUID. Also the replay-protection key.
+  string id = 1;
+  // Server UUID the command is for; must match the receiving agent's identity.
+  string server_id = 2;
+  google.protobuf.Timestamp issued_at = 3;
+  // Commands are rejected after this time (short: about a minute after dispatch).
+  google.protobuf.Timestamp expires_at = 4;
+  // 16 random bytes.
+  bytes nonce = 5;
+  ActionRequest request = 6;
+}
+
+// Command is sent from the control plane to the agent.
+message Command {
+  // Serialized CommandEnvelope.
+  bytes envelope = 1;
+  // Ed25519 signature over envelope.
+  bytes signature = 2;
+}
+
+// ActionRequest is one typed operation. There is deliberately no free-form command.
+message ActionRequest {
+  oneof action {
+    SystemInfoRequest system_info = 1;
+    ServiceListRequest service_list = 2;
+    ServiceControlRequest service_control = 3;
+    ProcessListRequest process_list = 4;
+    ProcessSignalRequest process_signal = 5;
+  }
+}
+
+// CommandResult is sent from the agent to the control plane.
+message CommandResult {
+  // Job UUID from the envelope.
+  string id = 1;
+  CommandStatus status = 2;
+  // Human-readable error for FAILED and REJECTED.
+  string error = 3;
+  ActionResult result = 4;
+}
+
+enum CommandStatus {
+  COMMAND_STATUS_UNSPECIFIED = 0;
+  COMMAND_STATUS_SUCCEEDED = 1;
+  // The action ran and failed.
+  COMMAND_STATUS_FAILED = 2;
+  // The command was not executed (bad signature, expired, replayed, invalid params).
+  COMMAND_STATUS_REJECTED = 3;
+}
+
+message ActionResult {
+  oneof result {
+    SystemInfoResult system_info = 1;
+    ServiceListResult service_list = 2;
+    ServiceControlResult service_control = 3;
+    ProcessListResult process_list = 4;
+    ProcessSignalResult process_signal = 5;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// system.info (read)
+// ---------------------------------------------------------------------------
+
+message SystemInfoRequest {}
+
+message SystemInfoResult {
+  string hostname = 1;
+  uint64 uptime_seconds = 2;
+  uint32 cpu_count = 3;
+  double load1 = 4;
+  double load5 = 5;
+  double load15 = 6;
+  uint64 memory_total_bytes = 7;
+  uint64 memory_available_bytes = 8;
+  uint64 swap_total_bytes = 9;
+  uint64 swap_free_bytes = 10;
+  repeated Filesystem filesystems = 11;
+}
+
+message Filesystem {
+  string mount_point = 1;
+  string device = 2;
+  string fs_type = 3;
+  uint64 total_bytes = 4;
+  uint64 available_bytes = 5;
+  uint64 inodes_total = 6;
+  uint64 inodes_free = 7;
+}
+
+// ---------------------------------------------------------------------------
+// services.list (read) and service.control (privileged)
+// ---------------------------------------------------------------------------
+
+message ServiceListRequest {
+  // Optional substring filter on the unit name.
+  string filter = 1;
+}
+
+message ServiceListResult {
+  repeated ServiceUnit units = 1;
+}
+
+message ServiceUnit {
+  string name = 1;
+  string description = 2;
+  // e.g. "loaded", "not-found"
+  string load_state = 3;
+  // e.g. "active", "inactive", "failed"
+  string active_state = 4;
+  // e.g. "running", "exited", "dead"
+  string sub_state = 5;
+  // e.g. "enabled", "disabled", "static"
+  string unit_file_state = 6;
+}
+
+enum ServiceOperation {
+  SERVICE_OPERATION_UNSPECIFIED = 0;
+  SERVICE_OPERATION_START = 1;
+  SERVICE_OPERATION_STOP = 2;
+  SERVICE_OPERATION_RESTART = 3;
+  SERVICE_OPERATION_RELOAD = 4;
+  SERVICE_OPERATION_ENABLE = 5;
+  SERVICE_OPERATION_DISABLE = 6;
+}
+
+message ServiceControlRequest {
+  // Unit name ending in .service, e.g. "nginx.service".
+  string unit = 1;
+  ServiceOperation operation = 2;
+}
+
+message ServiceControlResult {
+  // Unit state after the operation.
+  ServiceUnit unit = 1;
+}
+
+// ---------------------------------------------------------------------------
+// processes.list (read) and process.signal (privileged)
+// ---------------------------------------------------------------------------
+
+enum ProcessSort {
+  PROCESS_SORT_UNSPECIFIED = 0;
+  PROCESS_SORT_CPU = 1;
+  PROCESS_SORT_MEMORY = 2;
+  PROCESS_SORT_PID = 3;
+}
+
+message ProcessListRequest {
+  ProcessSort sort = 1;
+  // Maximum number of processes; 0 means 50. Capped at 500.
+  uint32 limit = 2;
+}
+
+message ProcessListResult {
+  repeated Process processes = 1;
+  uint32 total = 2;
+}
+
+message Process {
+  int32 pid = 1;
+  int32 ppid = 2;
+  string user = 3;
+  string name = 4;
+  // Truncated to 512 bytes.
+  string command_line = 5;
+  string state = 6;
+  double cpu_percent = 7;
+  uint64 rss_bytes = 8;
+  // Start time in clock ticks since boot; identifies the process across PID reuse.
+  uint64 start_ticks = 9;
+  uint32 threads = 10;
+}
+
+enum Signal {
+  SIGNAL_UNSPECIFIED = 0;
+  SIGNAL_TERM = 1;
+  SIGNAL_KILL = 2;
+  SIGNAL_HUP = 3;
+  SIGNAL_INT = 4;
+  SIGNAL_QUIT = 5;
+  SIGNAL_USR1 = 6;
+  SIGNAL_USR2 = 7;
+}
+
+message ProcessSignalRequest {
+  int32 pid = 1;
+  Signal signal = 2;
+  // Optional: start_ticks from processes.list. When set, the signal is only sent if the
+  // PID still belongs to the same process.
+  uint64 start_ticks = 3;
+}
+
+message ProcessSignalResult {}
+
+// ---------------------------------------------------------------------------
+// Privileged helper (sm-agent privd), served on a local UNIX socket only.
+// ---------------------------------------------------------------------------
+
+service PrivilegedService {
+  // Execute runs a privileged action. The helper verifies the control plane's signature
+  // itself, so a compromised unprivileged agent cannot invoke privileged actions.
+  rpc Execute(ExecuteRequest) returns (ExecuteResponse);
+}
+
+message ExecuteRequest {
+  Command command = 1;
+}
+
+message ExecuteResponse {
+  CommandResult result = 1;
+}

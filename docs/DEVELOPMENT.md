@@ -58,7 +58,23 @@ sm-server servers list
 sm-server servers revoke web-1 --reason "decommissioned"
 sm-server audit list
 sm-server audit verify
+
+sm-server system info web-1
+sm-server services list web-1 --filter nginx
+sm-server services restart web-1 nginx
+sm-server processes list web-1 --sort mem --limit 20
+sm-server processes kill web-1 1234 --start 567890 --yes   # medium risk: needs --yes
 ```
+
+Privileged actions (service control, signals) need the helper. On a real server it runs
+from `deploy/systemd/sm-agent-privd.service`; locally, run it as root next to the agent
+and point both at the same socket:
+
+```bash
+sudo bin/sm-agent privd --privd-config privd.yaml   # socket, agent_user, cert_file, command_key_file
+```
+
+`agent_user` must not be root; the helper refuses connections from any other UID.
 
 Configuration is read from YAML (`--config`) and can be overridden by environment
 variables: `SM_` + key for `sm-server` (e.g. `SM_API_LISTEN`), `SM_AGENT_` + key for

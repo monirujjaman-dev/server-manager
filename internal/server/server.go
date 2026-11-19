@@ -13,15 +13,20 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 
+	agentv1 "github.com/monirujjaman-dev/server-manager/gen/sm/agent/v1"
+
 	"github.com/monirujjaman-dev/server-manager/gen/sm/operator/v1/operatorv1connect"
+	"github.com/monirujjaman-dev/server-manager/internal/command"
 	"github.com/monirujjaman-dev/server-manager/internal/pkg/logging"
 	"github.com/monirujjaman-dev/server-manager/internal/pki"
 	"github.com/monirujjaman-dev/server-manager/internal/server/api"
 	"github.com/monirujjaman-dev/server-manager/internal/server/enroll"
 	"github.com/monirujjaman-dev/server-manager/internal/server/fleet"
 	"github.com/monirujjaman-dev/server-manager/internal/server/gateway"
+	"github.com/monirujjaman-dev/server-manager/internal/server/jobs"
 	"github.com/monirujjaman-dev/server-manager/internal/server/store"
 )
 
@@ -94,6 +99,7 @@ type Server struct {
 	st          *store.Store
 	revocations pki.RevocationChecker
 	enroll      *enroll.Service
+	jobs        *jobs.Dispatcher
 	gw          *gateway.Gateway
 }
 
@@ -135,12 +141,33 @@ func New(ctx context.Context, cfg Config, log *slog.Logger, opts ...Option) (*Se
 		log.Info("marked servers offline after restart", "count", n)
 	}
 
+	cmdKey, created, err := pki.LoadOrCreateCommandKey(cfg.PKIDir)
+	if err != nil {
+		st.Close()
+		return nil, fmt.Errorf("command signing key: %w", err)
+	}
+	if created {
+		log.Info("created command signing key", "file", filepath.Join(cfg.PKIDir, pki.CommandKeyFile))
+	}
+	signer := command.NewSigner(cmdKey)
+
 	revocations := fleet.Revocations{Q: st.Queries}
 	enrollSvc := enroll.NewService(st, ca, enroll.Options{
-		AgentURL:   cfg.PublicAgentURL,
-		Logger:     log.With("component", "enroll"),
-		RenewAfter: o.renewAfter,
+		AgentURL:         cfg.PublicAgentURL,
+		CommandPublicKey: signer.PublicKey(),
+		Logger:           log.With("component", "enroll"),
+		RenewAfter:       o.renewAfter,
 	})
+	dispatcher := jobs.NewDispatcher(st, signer, log.With("component", "jobs"))
+	gw := gateway.New(gateway.Options{
+		Logger:            log.With("component", "gateway"),
+		Hooks:             hooks{Hooks: fleet.Hooks{Q: st.Queries, Log: log.With("component", "fleet")}, d: dispatcher},
+		Revocations:       revocations,
+		Renewer:           enrollSvc,
+		CommandPublicKey:  signer.PublicKey(),
+		HeartbeatInterval: cfg.HeartbeatInterval,
+	})
+	dispatcher.SetRegistry(gw.Registry())
 	return &Server{
 		cfg:         cfg,
 		log:         log,
@@ -149,14 +176,21 @@ func New(ctx context.Context, cfg Config, log *slog.Logger, opts ...Option) (*Se
 		st:          st,
 		revocations: revocations,
 		enroll:      enrollSvc,
-		gw: gateway.New(gateway.Options{
-			Logger:            log.With("component", "gateway"),
-			Hooks:             fleet.Hooks{Q: st.Queries, Log: log.With("component", "fleet")},
-			Revocations:       revocations,
-			Renewer:           enrollSvc,
-			HeartbeatInterval: cfg.HeartbeatInterval,
-		}),
+		jobs:        dispatcher,
+		gw:          gw,
 	}, nil
+}
+
+// hooks combines fleet bookkeeping with job dispatch.
+type hooks struct {
+	fleet.Hooks
+	d *jobs.Dispatcher
+}
+
+func (h hooks) OnSessionStart(_ context.Context, id uuid.UUID) { h.d.Kick(id) }
+
+func (h hooks) OnCommandResult(ctx context.Context, id uuid.UUID, res *agentv1.CommandResult) error {
+	return h.d.Complete(ctx, id, res)
 }
 
 // Close releases the database connections.
@@ -200,6 +234,7 @@ func (s *Server) Serve(ctx context.Context, agentLn, apiLn net.Listener) error {
 	}
 	g.Go(serve(agentSrv, agentLn, "agent"))
 	g.Go(serve(apiSrv, apiLn, "api"))
+	g.Go(func() error { return s.jobs.Run(gctx) })
 	g.Go(func() error {
 		<-gctx.Done()
 		s.log.Info("shutting down")

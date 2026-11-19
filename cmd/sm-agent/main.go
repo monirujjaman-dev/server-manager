@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -14,6 +15,7 @@ import (
 	"github.com/monirujjaman-dev/server-manager/internal/pkg/config"
 	"github.com/monirujjaman-dev/server-manager/internal/pkg/logging"
 	"github.com/monirujjaman-dev/server-manager/internal/pkg/version"
+	"github.com/monirujjaman-dev/server-manager/internal/privd"
 )
 
 const envPrefix = "SM_AGENT_"
@@ -28,7 +30,7 @@ func main() {
 }
 
 func rootCmd() *cobra.Command {
-	var configPath string
+	var configPath, privdConfig string
 	root := &cobra.Command{
 		Use:           "sm-agent",
 		Short:         "Server Manager agent",
@@ -89,10 +91,48 @@ certificate it receives. Writes agent.key, agent.crt, ca.crt and agent.yaml to -
 	enroll.Flags().StringVar(&eo.Token, "token", "", "one-time enrollment token (or env SM_AGENT_ENROLL_TOKEN)")
 	enroll.Flags().StringVar(&eo.Dir, "dir", "/etc/sm-agent", "directory for the agent's key, certificates and config")
 	enroll.Flags().StringVar(&eo.AgentURL, "agent-url", "", "override the agent gateway URL returned by the control plane")
+	enroll.Flags().StringVar(&eo.Owner, "owner", "", "user that runs the agent and owns --dir (e.g. smagent)")
 	_ = enroll.MarkFlagRequired("server")
 	_ = enroll.MarkFlagRequired("pin")
 
-	root.AddCommand(enroll, &cobra.Command{
+	privdCmd := &cobra.Command{
+		Use:   "privd",
+		Short: "Run the privileged helper (root, local UNIX socket only)",
+		Long: `Run the privileged helper. It must run as root, listens only on a local UNIX socket,
+accepts connections only from the agent user, and executes privileged actions only
+after verifying the control plane's signature itself.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg := privd.DefaultConfig()
+			if err := config.Load(privdConfig, "SM_PRIVD_", &cfg); err != nil {
+				return err
+			}
+			log, err := logging.New(os.Stderr, cfg.Log)
+			if err != nil {
+				return err
+			}
+			if os.Geteuid() != 0 {
+				return errors.New("sm-agent privd must run as root")
+			}
+			gid, err := privd.AgentGID(cfg.AgentUser)
+			if err != nil {
+				return fmt.Errorf("agent user %q: %w", cfg.AgentUser, err)
+			}
+			srv, err := privd.New(cfg, log, privd.Options{})
+			if err != nil {
+				return err
+			}
+			ln, err := privd.Listen(cmd.Context(), cfg.Socket, gid)
+			if err != nil {
+				return err
+			}
+			log.Info("privileged helper listening", "socket", cfg.Socket, "agent_user", cfg.AgentUser)
+			return srv.Serve(cmd.Context(), ln)
+		},
+	}
+	privdCmd.Flags().StringVar(&privdConfig, "privd-config", os.Getenv("SM_PRIVD_CONFIG"), "helper config file (env SM_PRIVD_CONFIG)")
+
+	root.AddCommand(enroll, privdCmd, &cobra.Command{
 		Use:   "version",
 		Short: "Print version information",
 		Args:  cobra.NoArgs,

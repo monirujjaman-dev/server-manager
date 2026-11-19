@@ -1,0 +1,45 @@
+# Server Manager agent: unprivileged, network-facing. Privileged actions are forwarded to
+# sm-agent-privd.service over a local socket.
+[Unit]
+Description=Server Manager agent
+Documentation=https://github.com/monirujjaman-dev/server-manager
+Wants=network-online.target sm-agent-privd.service
+After=network-online.target sm-agent-privd.service
+
+[Service]
+Type=simple
+User=smagent
+Group=smagent
+ExecStart=/usr/local/bin/sm-agent run --config /etc/sm-agent/agent.yaml
+Restart=always
+RestartSec=5
+
+# The agent rewrites its certificate on renewal and stores the command key.
+ReadWritePaths=/etc/sm-agent
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+UMask=0077
+MemoryMax=256M
+
+[Install]
+WantedBy=multi-user.target
