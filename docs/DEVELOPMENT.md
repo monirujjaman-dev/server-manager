@@ -14,6 +14,22 @@ separate `tools/` module and run with `go tool -modfile=tools/go.mod <name>`; no
 needs to be installed. They are kept out of the main `go.mod` so their dependencies never
 end up in the shipped binaries.
 
+## Windows and macOS
+
+`sm-server` and `smctl` build and run on Windows, macOS and Linux. `sm-agent` manages
+**Linux** servers only (it reads `/proc`, talks to systemd and uses `SO_PEERCRED`): it
+compiles everywhere, but `sm-agent run` and `sm-agent privd` refuse to start off Linux.
+
+- `make` needs a POSIX shell with `git` and `date`, e.g. Git Bash or MSYS2 on Windows.
+- Easiest on Windows: clone and run the whole dev setup inside **WSL2** (Ubuntu). Docker
+  Desktop's WSL integration provides `docker compose` there.
+- Alternatively run the control plane on Windows and only the agent in WSL2. Enable
+  mirrored networking (`networkingMode=mirrored` in `%UserProfile%\.wslconfig`) so the
+  agent reaches the control plane on `127.0.0.1`, then run `make dev-enroll dev-agent`
+  inside WSL.
+- On Windows, private-key file permissions are not checked (Windows uses ACLs, not Unix
+  mode bits); keep `.dev/` and production PKI directories readable only by your user.
+
 ## Common tasks
 
 ```bash

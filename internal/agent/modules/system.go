@@ -11,8 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/sys/unix"
-
 	agentv1 "github.com/monirujjaman-dev/server-manager/gen/sm/agent/v1"
 )
 
@@ -107,13 +105,8 @@ func filesystems(mounts []byte) []*agentv1.Filesystem {
 		mount := unescapeMount(f[1])
 		seen[f[1]] = true
 		fs := &agentv1.Filesystem{MountPoint: mount, Device: f[0], FsType: f[2]}
-		var st unix.Statfs_t
-		if err := unix.Statfs(mount, &st); err == nil {
-			bs := uint64(st.Bsize) //nolint:gosec // block size is positive
-			fs.TotalBytes = st.Blocks * bs
-			fs.AvailableBytes = st.Bavail * bs
-			fs.InodesTotal = st.Files
-			fs.InodesFree = st.Ffree
+		if u, err := statfs(mount); err == nil {
+			fs.TotalBytes, fs.AvailableBytes, fs.InodesTotal, fs.InodesFree = u.total, u.avail, u.inodes, u.inodesFree
 		}
 		out = append(out, fs)
 	}
