@@ -63,6 +63,15 @@ type Job struct {
 	FinishedAt   *time.Time
 }
 
+type RoleBinding struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	GroupID   *uuid.UUID
+	Role      string
+	CreatedBy string
+	CreatedAt time.Time
+}
+
 type Server struct {
 	ID            uuid.UUID
 	Name          string
@@ -107,13 +116,31 @@ type ServerMetric struct {
 	NetTxBytesPerSecond  float64
 }
 
+type Session struct {
+	ID         uuid.UUID
+	TokenHash  []byte
+	UserID     uuid.UUID
+	CreatedAt  time.Time
+	ExpiresAt  time.Time
+	LastSeenAt time.Time
+	MfaAt      time.Time
+	SourceIP   *netip.Addr
+	UserAgent  string
+	RevokedAt  *time.Time
+}
+
 type User struct {
-	ID           uuid.UUID
-	Email        string
-	Name         string
-	AuthProvider string
-	PasswordHash *string
-	MfaRequired  bool
-	CreatedAt    time.Time
-	DisabledAt   *time.Time
+	ID            uuid.UUID
+	Email         string
+	Name          string
+	AuthProvider  string
+	PasswordHash  *string
+	MfaRequired   bool
+	CreatedAt     time.Time
+	DisabledAt    *time.Time
+	TotpSecretEnc []byte
+	TotpLastStep  int64
+	FailedLogins  int32
+	LockedUntil   *time.Time
+	LastLoginAt   *time.Time
 }

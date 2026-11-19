@@ -20,6 +20,7 @@ import (
 	"github.com/monirujjaman-dev/server-manager/internal/pki"
 	"github.com/monirujjaman-dev/server-manager/internal/server/audit"
 	"github.com/monirujjaman-dev/server-manager/internal/server/gateway"
+	"github.com/monirujjaman-dev/server-manager/internal/server/ratelimit"
 	"github.com/monirujjaman-dev/server-manager/internal/server/store"
 	"github.com/monirujjaman-dev/server-manager/internal/server/store/db"
 )
@@ -36,7 +37,7 @@ type Service struct {
 	agentURL string
 	cmdKey   []byte
 	log      *slog.Logger
-	limiter  *ipLimiter
+	limiter  *ratelimit.IPLimiter
 	// renewAfter is the fraction of a certificate's lifetime that must have passed
 	// before it can be renewed.
 	renewAfter float64
@@ -72,7 +73,7 @@ func NewService(st *store.Store, ca *pki.CA, opts Options) *Service {
 	}
 	return &Service{
 		st: st, ca: ca, agentURL: opts.AgentURL, cmdKey: opts.CommandPublicKey, log: opts.Logger,
-		limiter: newIPLimiter(opts.RateLimit, opts.RateBurst), renewAfter: opts.RenewAfter,
+		limiter: ratelimit.New(opts.RateLimit, opts.RateBurst), renewAfter: opts.RenewAfter,
 	}
 }
 
@@ -93,7 +94,7 @@ func peerIP(addr string) *netip.Addr {
 // Enroll exchanges a valid token and CSR for an agent certificate.
 func (s *Service) Enroll(ctx context.Context, req *connect.Request[agentv1.EnrollRequest]) (*connect.Response[agentv1.EnrollResponse], error) {
 	ip := peerIP(req.Peer().Addr)
-	if ip != nil && !s.limiter.allow(*ip) {
+	if ip != nil && !s.limiter.Allow(*ip) {
 		return nil, connect.NewError(connect.CodeResourceExhausted, errors.New("too many enrollment attempts; try again later"))
 	}
 	m := req.Msg

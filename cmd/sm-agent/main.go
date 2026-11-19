@@ -38,6 +38,8 @@ func rootCmd() *cobra.Command {
 		SilenceErrors: true,
 		Version:       version.Get().Version,
 	}
+	// cmd.Print* writes to stderr unless an output is set; results belong on stdout.
+	root.SetOut(os.Stdout)
 	root.SetVersionTemplate(version.String("sm-agent") + "\n")
 	root.PersistentFlags().StringVarP(&configPath, "config", "c", os.Getenv(envPrefix+"CONFIG"), "path to config file (env SM_AGENT_CONFIG)")
 

@@ -277,15 +277,30 @@ cast stored with the audit event) and announced to other admins.
 
 ### 5.2 Authentication and authorization
 
-- **Humans:** OIDC (Google, GitHub, Keycloak, Authentik …) or built-in local
-  accounts. MFA is required for every account. Passwords hashed with Argon2id.
-- **CLI:** OAuth 2.0 device-code flow; tokens stored in the OS keyring.
+- **Humans (implemented):** local accounts with Argon2id password hashes (RFC 9106
+  parameters) and **mandatory TOTP** (RFC 6238). TOTP secrets are encrypted at rest with
+  AES-256-GCM using `pki_dir/secrets.key`, bound to the user ID. Each TOTP time step is
+  accepted once per user (atomic check), so a seen code cannot be replayed.
+- **Login protection:** one generic error for unknown accounts, wrong passwords, wrong
+  codes, disabled and locked accounts; unknown accounts still run Argon2id so timing
+  does not reveal them; per-IP rate limit; lockout for 15 minutes after 5 failures. All
+  attempts are audited.
+- **Sessions:** 32-byte bearer tokens (`smses_…`, only the SHA-256 stored), 8 h absolute
+  and 30 min idle lifetime, revoked on logout, credential reset or account disable.
+  `smctl` stores the token in a 0600 file (`~/.config/smctl/session.json`).
+- **Step-up:** high- and critical-risk actions (revoking a server, creating enrollment
+  tokens) need a TOTP check from the last 5 minutes; the API marks such errors with an
+  `Sm-Step-Up` header and `smctl` prompts for a code and retries.
 - **Agents:** mTLS client certificates issued by the internal CA. Certificate
   subject = server UUID.
-- **RBAC:** roles (`viewer`, `operator`, `admin`, `owner`) bound to users **per
-  server group**, e.g. `alice` is `admin` on `staging` and `viewer` on `production`.
-  Custom roles can allow or deny individual modules.
-- **API tokens** for automation are scoped (groups + modules + max risk) and expire.
+- **RBAC (implemented):** roles `viewer` < `operator` < `admin` < `owner`, bound per
+  server group or for all servers. viewer: read actions; operator: low and medium;
+  admin: high (+ step-up), the audit log (global admin) and enrollment; owner: critical.
+  Servers outside a user's groups are reported as not found.
+- **Bootstrap:** the first accounts are created on the control-plane host with
+  `sm-server users create`; there is no default account.
+- **Later:** OIDC login, OAuth device-code flow for the CLI with tokens in the OS
+  keyring, WebAuthn, custom roles, and scoped API tokens for automation.
 
 ### 5.3 Agent hardening
 

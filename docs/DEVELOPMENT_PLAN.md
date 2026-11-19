@@ -73,17 +73,17 @@ until token enrollment (task 1.1) exists.
 
 | # | Task | Done when | Status |
 |---|------|-----------|--------|
-| 1.1 | Enrollment flow (token → CSR → cert, fingerprint pinning) | `smctl server add` prints an install command; new server shows as online | ✅ `sm-server enroll create-token` + `sm-agent enroll`; moves to `smctl` with 1.9 |
+| 1.1 | Enrollment flow (token → CSR → cert, fingerprint pinning) | `smctl server add` prints an install command; new server shows as online | ✅ `smctl enroll create-token` + `sm-agent enroll` |
 | 1.2 | Agent stream: heartbeat, reconnect with back-off, on-disk buffer | Killing the network for 10 min loses no metrics | ✅ 2 h in-memory buffer, sent oldest-first after reconnect (survives disconnects, not agent restarts; on-disk spool later if needed) |
 | 1.3 | Command dispatch: job table, signing, expiry, nonce, result streaming | Commands survive agent reconnects; replayed commands are rejected | ✅ jobs queue + NOTIFY, Ed25519 signing, replay/expiry checks, results queued across reconnects |
 | 1.4 | `sm-privd` helper: UNIX socket, `SO_PEERCRED` check, typed action registry | Agent-to-helper calls work; any other UID is refused | ✅ `sm-agent privd`; also re-verifies the control-plane signature |
-| 1.5 | Module **system**: host facts + CPU/RAM/disk/load metrics to VictoriaMetrics | `smctl dashboard` shows live numbers for all servers | ✅ 15 s metrics push, latest snapshot in PostgreSQL, history to VictoriaMetrics; `sm-server dashboard --watch` (moves to `smctl` with 1.9) |
+| 1.5 | Module **system**: host facts + CPU/RAM/disk/load metrics to VictoriaMetrics | `smctl dashboard` shows live numbers for all servers | ✅ 15 s metrics push, latest snapshot in PostgreSQL, history to VictoriaMetrics; `smctl dashboard --watch` |
 | 1.6 | Module **services** (systemd D-Bus): list, status, start/stop/restart, enable/disable | Restarting `nginx` from the CLI works and is audited | 🟡 implemented and tested with a fake systemd; real D-Bus to be verified in VMs (1.12) |
-| 1.7 | Module **processes**: list, tree, top-N, signal | `smctl proc top srv-1` and `smctl proc kill` work | ✅ list/top-N/signal (with PID-reuse protection) via `sm-server processes`; tree view and `smctl` later |
-| 1.8 | Module **logs**: journald query/tail, SSH-login and sudo history | `smctl logs srv-1 --unit nginx --follow` works | ✅ `sm-server logs web-1 --unit nginx --follow` (cursor polling every 2 s) and `sm-server logins` |
-| 1.9 | Authentication: local accounts (Argon2id) + TOTP, CLI device-code login, sessions | Login without MFA is impossible | ⏳ |
-| 1.10 | RBAC: built-in roles per server group | `viewer` cannot restart services (test) | ⏳ |
-| 1.11 | Audit log with hash chain + `smctl audit` search + chain verify job | Tampering with a row is detected | 🟡 hash chain, tamper detection, `sm-server audit list/verify` done; `smctl` search + scheduled verify pending |
+| 1.7 | Module **processes**: list, tree, top-N, signal | `smctl proc top srv-1` and `smctl proc kill` work | ✅ list/top-N/signal (with PID-reuse protection) via `smctl processes`; tree view later |
+| 1.8 | Module **logs**: journald query/tail, SSH-login and sudo history | `smctl logs srv-1 --unit nginx --follow` works | ✅ `smctl logs web-1 --unit nginx --follow` (cursor polling every 2 s) and `smctl logins` |
+| 1.9 | Authentication: local accounts (Argon2id) + TOTP, CLI device-code login, sessions | Login without MFA is impossible | ✅ Argon2id + mandatory TOTP, sessions, lockout, step-up; `smctl login` asks for password and code directly (device-code flow and OS keyring later) |
+| 1.10 | RBAC: built-in roles per server group | `viewer` cannot restart services (test) | ✅ viewer/operator/admin/owner per group or global; tested end to end |
+| 1.11 | Audit log with hash chain + `smctl audit` search + chain verify job | Tampering with a row is detected | 🟡 hash chain, tamper detection, `smctl audit list`, `sm-server audit verify`; scheduled verify job pending |
 | 1.12 | systemd units with sandboxing, install script, `.deb`/`.rpm` via GoReleaser | Fresh Ubuntu 24.04 and Rocky 9 VMs enroll with one command | 🟡 hardened units in `deploy/systemd/` (syntax-checked, not yet run on a VM) |
 
 Also done in the first Phase 1 slice (needed for 1.1 to be usable in production):

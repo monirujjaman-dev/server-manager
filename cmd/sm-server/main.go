@@ -36,6 +36,8 @@ func rootCmd() *cobra.Command {
 		SilenceErrors: true,
 		Version:       version.Get().Version,
 	}
+	// cmd.Print* writes to stderr unless an output is set; results belong on stdout.
+	root.SetOut(os.Stdout)
 	root.SetVersionTemplate(version.String("sm-server") + "\n")
 	root.PersistentFlags().StringVarP(&configPath, "config", "c", os.Getenv(envPrefix+"CONFIG"), "path to config file (env SM_CONFIG)")
 
@@ -75,8 +77,6 @@ func rootCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		Run:   func(cmd *cobra.Command, _ []string) { cmd.Println(version.String("sm-server")) },
 	})
-	root.AddCommand(migrateCmd(loadConfig), pkiCmd(loadConfig), enrollCmd(loadConfig), serversCmd(loadConfig), groupsCmd(loadConfig), auditCmd(loadConfig))
-	root.AddCommand(actionCommands(loadConfig)...)
-	root.AddCommand(observeCommands(loadConfig)...)
+	root.AddCommand(migrateCmd(loadConfig), pkiCmd(loadConfig), enrollCmd(loadConfig), serversCmd(loadConfig), groupsCmd(loadConfig), auditCmd(loadConfig), usersCmd(loadConfig))
 	return root
 }

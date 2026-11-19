@@ -21,3 +21,13 @@ SELECT s.id, s.name, s.status, s.last_seen_at, s.agent_version,
        m.disk_max_used_percent, m.disk_max_mount, m.net_rx_bytes_per_second, m.net_tx_bytes_per_second, m.uptime_seconds
 FROM servers s LEFT JOIN server_metrics m ON m.server_id = s.id
 ORDER BY s.name;
+
+-- name: ListServersWithMetrics :many
+SELECT s.id, s.name, s.group_id, g.name AS group_name, s.status, s.hostname, s.distro, s.distro_version,
+       s.agent_version, s.last_seen_at,
+       m.collected_at, m.cpu_percent, m.cpu_count, m.load1, m.memory_total_bytes, m.memory_available_bytes,
+       m.disk_max_used_percent, m.disk_max_mount, m.net_rx_bytes_per_second, m.net_tx_bytes_per_second, m.uptime_seconds
+FROM servers s
+LEFT JOIN server_groups g ON g.id = s.group_id
+LEFT JOIN server_metrics m ON m.server_id = s.id
+ORDER BY s.name;

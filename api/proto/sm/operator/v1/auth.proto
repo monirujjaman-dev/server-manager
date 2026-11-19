@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package sm.operator.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// AuthService handles operator sessions. Every other operator call needs the bearer
+// token returned by Login in the Authorization header.
+service AuthService {
+  // Login checks e-mail, password and a TOTP code. MFA is always required.
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc WhoAmI(WhoAmIRequest) returns (WhoAmIResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // StepUp re-checks a TOTP code; high- and critical-risk actions need one from the
+  // last few minutes.
+  rpc StepUp(StepUpRequest) returns (StepUpResponse);
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+  string totp_code = 3;
+}
+
+message LoginResponse {
+  // Bearer token ("smses_…"). Keep it secret.
+  string token = 1;
+  google.protobuf.Timestamp expires_at = 2;
+  string email = 3;
+}
+
+message LogoutRequest {}
+
+message LogoutResponse {}
+
+message WhoAmIRequest {}
+
+message WhoAmIResponse {
+  string user_id = 1;
+  string email = 2;
+  google.protobuf.Timestamp mfa_at = 3;
+  repeated RoleGrant roles = 4;
+}
+
+message RoleGrant {
+  // Server group name; empty means all servers.
+  string group = 1;
+  string role = 2;
+}
+
+message StepUpRequest {
+  string totp_code = 1;
+}
+
+message StepUpResponse {}

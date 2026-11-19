@@ -48,27 +48,41 @@ the agent key locally, enrolls, and writes `agent.yaml` next to the key and cert
 Run it with `NAME=dev-2` to enroll a second agent into another directory by setting
 `DEV_DIR` as well.
 
-Admin commands on the control-plane host (they use the database directly until the
-operator API gets user authentication):
+Create the first account on the control-plane host (it prompts for a password and
+shows a TOTP secret to add to an authenticator app, then asks for one code to confirm):
 
 ```bash
+bin/sm-server users create you@example.com --role owner --config deploy/dev/sm-server.yaml
+```
+
+Operators then use `smctl`, which logs in once and stores the session:
+
+```bash
+smctl login --server https://127.0.0.1:8444 --ca-file .dev/pki/root.crt
+smctl whoami
+smctl dashboard --watch 5s
+smctl system info web-1
+smctl services restart web-1 nginx
+smctl processes list web-1 --sort mem --limit 20
+smctl processes kill web-1 1234 --start 567890 --yes     # medium risk: needs --yes
+smctl logs web-1 --unit nginx --priority err --since 2h
+smctl logs web-1 --unit nginx --follow
+smctl logins web-1 --failed
+smctl enroll create-token --name web-2 --group production  # admin; asks for a fresh MFA code if needed
+smctl servers revoke web-2 --reason "decommissioned" --yes # admin; high risk
+smctl audit list                                           # global admin
+smctl logout
+```
+
+Host-side admin commands (database access, no login) stay in `sm-server` for
+bootstrapping and break-glass use:
+
+```bash
+sm-server users create|list|grant|ungrant|disable|enable|reset
 sm-server groups create production
 sm-server enroll create-token --name web-1 --group production
-sm-server servers list
-sm-server servers revoke web-1 --reason "decommissioned"
-sm-server audit list
-sm-server audit verify
-
-sm-server system info web-1
-sm-server services list web-1 --filter nginx
-sm-server services restart web-1 nginx
-sm-server processes list web-1 --sort mem --limit 20
-sm-server processes kill web-1 1234 --start 567890 --yes   # medium risk: needs --yes
-
-sm-server dashboard --watch 5s
-sm-server logs web-1 --unit nginx --priority err --since 2h
-sm-server logs web-1 --unit nginx --follow
-sm-server logins web-1 --failed
+sm-server servers list|revoke
+sm-server audit list|verify
 ```
 
 Set `victoriametrics_url: http://127.0.0.1:8428` (the dev compose service) to keep

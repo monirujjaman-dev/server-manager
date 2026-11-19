@@ -12,7 +12,7 @@ import (
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (email, name, auth_provider, password_hash)
 VALUES ($1, $2, $3, $4)
-RETURNING id, email, name, auth_provider, password_hash, mfa_required, created_at, disabled_at
+RETURNING id, email, name, auth_provider, password_hash, mfa_required, created_at, disabled_at, totp_secret_enc, totp_last_step, failed_logins, locked_until, last_login_at
 `
 
 type CreateUserParams struct {
@@ -39,12 +39,17 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.MfaRequired,
 		&i.CreatedAt,
 		&i.DisabledAt,
+		&i.TotpSecretEnc,
+		&i.TotpLastStep,
+		&i.FailedLogins,
+		&i.LockedUntil,
+		&i.LastLoginAt,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, name, auth_provider, password_hash, mfa_required, created_at, disabled_at FROM users WHERE lower(email) = lower($1)
+SELECT id, email, name, auth_provider, password_hash, mfa_required, created_at, disabled_at, totp_secret_enc, totp_last_step, failed_logins, locked_until, last_login_at FROM users WHERE lower(email) = lower($1)
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -59,6 +64,11 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.MfaRequired,
 		&i.CreatedAt,
 		&i.DisabledAt,
+		&i.TotpSecretEnc,
+		&i.TotpLastStep,
+		&i.FailedLogins,
+		&i.LockedUntil,
+		&i.LastLoginAt,
 	)
 	return i, err
 }
