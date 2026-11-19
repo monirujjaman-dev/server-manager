@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package sm.operator.v1;
+
+import "sm/agent/v1/actions.proto";
+
+// ActionService runs typed actions on servers, subject to RBAC.
+service ActionService {
+  // Run queues an action and waits for its result. Viewer may run read actions,
+  // operator low and medium, admin high (with step-up), owner critical (with step-up).
+  rpc Run(RunRequest) returns (RunResponse);
+  // GetJob returns a job's current state, e.g. after Run returned before it finished.
+  rpc GetJob(GetJobRequest) returns (GetJobResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message RunRequest {
+  // Server name or ID.
+  string server = 1;
+  sm.agent.v1.ActionRequest request = 2;
+  // How long to wait for the result; 0 means 120 s. Capped at 180 s.
+  uint32 wait_seconds = 3;
+}
+
+message RunResponse {
+  Job job = 1;
+}
+
+message GetJobRequest {
+  string job_id = 1;
+}
+
+message GetJobResponse {
+  Job job = 1;
+}
+
+message Job {
+  string id = 1;
+  string server_id = 2;
+  string action = 3;
+  string risk = 4;
+  // pending, dispatched, succeeded, failed, rejected or expired.
+  string status = 5;
+  string error = 6;
+  // Set when status is succeeded.
+  sm.agent.v1.ActionResult result = 7;
+}

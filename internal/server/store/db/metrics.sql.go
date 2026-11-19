@@ -76,6 +76,83 @@ func (q *Queries) Dashboard(ctx context.Context) ([]DashboardRow, error) {
 	return items, nil
 }
 
+const listServersWithMetrics = `-- name: ListServersWithMetrics :many
+SELECT s.id, s.name, s.group_id, g.name AS group_name, s.status, s.hostname, s.distro, s.distro_version,
+       s.agent_version, s.last_seen_at,
+       m.collected_at, m.cpu_percent, m.cpu_count, m.load1, m.memory_total_bytes, m.memory_available_bytes,
+       m.disk_max_used_percent, m.disk_max_mount, m.net_rx_bytes_per_second, m.net_tx_bytes_per_second, m.uptime_seconds
+FROM servers s
+LEFT JOIN server_groups g ON g.id = s.group_id
+LEFT JOIN server_metrics m ON m.server_id = s.id
+ORDER BY s.name
+`
+
+type ListServersWithMetricsRow struct {
+	ID                   uuid.UUID
+	Name                 string
+	GroupID              *uuid.UUID
+	GroupName            *string
+	Status               string
+	Hostname             string
+	Distro               string
+	DistroVersion        string
+	AgentVersion         string
+	LastSeenAt           *time.Time
+	CollectedAt          *time.Time
+	CpuPercent           *float64
+	CpuCount             *int32
+	Load1                *float64
+	MemoryTotalBytes     *int64
+	MemoryAvailableBytes *int64
+	DiskMaxUsedPercent   *float64
+	DiskMaxMount         *string
+	NetRxBytesPerSecond  *float64
+	NetTxBytesPerSecond  *float64
+	UptimeSeconds        *int64
+}
+
+func (q *Queries) ListServersWithMetrics(ctx context.Context) ([]ListServersWithMetricsRow, error) {
+	rows, err := q.db.Query(ctx, listServersWithMetrics)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListServersWithMetricsRow
+	for rows.Next() {
+		var i ListServersWithMetricsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.GroupID,
+			&i.GroupName,
+			&i.Status,
+			&i.Hostname,
+			&i.Distro,
+			&i.DistroVersion,
+			&i.AgentVersion,
+			&i.LastSeenAt,
+			&i.CollectedAt,
+			&i.CpuPercent,
+			&i.CpuCount,
+			&i.Load1,
+			&i.MemoryTotalBytes,
+			&i.MemoryAvailableBytes,
+			&i.DiskMaxUsedPercent,
+			&i.DiskMaxMount,
+			&i.NetRxBytesPerSecond,
+			&i.NetTxBytesPerSecond,
+			&i.UptimeSeconds,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertServerMetrics = `-- name: UpsertServerMetrics :exec
 INSERT INTO server_metrics (
     server_id, collected_at, cpu_percent, cpu_count, load1, load5, load15,

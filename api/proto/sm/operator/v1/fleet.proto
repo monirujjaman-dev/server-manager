@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+package sm.operator.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// FleetService lists servers and manages enrollment, revocation and the audit log.
+service FleetService {
+  // ListServers returns the servers the caller may see, with their latest metrics.
+  rpc ListServers(ListServersRequest) returns (ListServersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // CreateEnrollmentToken needs the admin role (on the group, or globally) and step-up.
+  rpc CreateEnrollmentToken(CreateEnrollmentTokenRequest) returns (CreateEnrollmentTokenResponse);
+  // RevokeServer needs the admin role on the server's group and step-up.
+  rpc RevokeServer(RevokeServerRequest) returns (RevokeServerResponse);
+  // ListAuditEvents needs the global admin role.
+  rpc ListAuditEvents(ListAuditEventsRequest) returns (ListAuditEventsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message ListServersRequest {}
+
+message ListServersResponse {
+  repeated Server servers = 1;
+}
+
+message Server {
+  string id = 1;
+  string name = 2;
+  string group = 3;
+  string status = 4;
+  string hostname = 5;
+  string distro = 6;
+  string distro_version = 7;
+  string agent_version = 8;
+  google.protobuf.Timestamp last_seen_at = 9;
+  // Absent when the server has not reported metrics yet.
+  ServerMetrics metrics = 10;
+}
+
+message ServerMetrics {
+  google.protobuf.Timestamp collected_at = 1;
+  double cpu_percent = 2;
+  uint32 cpu_count = 3;
+  double load1 = 4;
+  uint64 memory_total_bytes = 5;
+  uint64 memory_available_bytes = 6;
+  double disk_max_used_percent = 7;
+  string disk_max_mount = 8;
+  double net_rx_bytes_per_second = 9;
+  double net_tx_bytes_per_second = 10;
+  uint64 uptime_seconds = 11;
+}
+
+message CreateEnrollmentTokenRequest {
+  string server_name = 1;
+  // Optional server group.
+  string group = 2;
+  // 0 means 15 minutes.
+  uint32 ttl_seconds = 3;
+}
+
+message CreateEnrollmentTokenResponse {
+  string token = 1;
+  google.protobuf.Timestamp expires_at = 2;
+  // SHA-256 public-key pin of the control plane for `sm-agent enroll --pin`.
+  string pin = 3;
+  // public_api_url from the control-plane configuration, if set.
+  string api_url = 4;
+}
+
+message RevokeServerRequest {
+  // Server name or ID.
+  string server = 1;
+  string reason = 2;
+}
+
+message RevokeServerResponse {}
+
+message ListAuditEventsRequest {
+  int64 after_id = 1;
+  // 0 means 100. Capped at 1000.
+  uint32 limit = 2;
+}
+
+message ListAuditEventsResponse {
+  repeated AuditEvent events = 1;
+}
+
+message AuditEvent {
+  int64 id = 1;
+  google.protobuf.Timestamp time = 2;
+  string actor_type = 3;
+  string actor_id = 4;
+  string source_ip = 5;
+  string server_id = 6;
+  string action = 7;
+  string result = 8;
+  map<string, string> params = 9;
+}

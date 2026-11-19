@@ -23,11 +23,13 @@ import (
 	"github.com/monirujjaman-dev/server-manager/internal/pkg/logging"
 	"github.com/monirujjaman-dev/server-manager/internal/pki"
 	"github.com/monirujjaman-dev/server-manager/internal/server/api"
+	"github.com/monirujjaman-dev/server-manager/internal/server/auth"
 	"github.com/monirujjaman-dev/server-manager/internal/server/enroll"
 	"github.com/monirujjaman-dev/server-manager/internal/server/fleet"
 	"github.com/monirujjaman-dev/server-manager/internal/server/gateway"
 	"github.com/monirujjaman-dev/server-manager/internal/server/jobs"
 	"github.com/monirujjaman-dev/server-manager/internal/server/metrics"
+	"github.com/monirujjaman-dev/server-manager/internal/server/secretbox"
 	"github.com/monirujjaman-dev/server-manager/internal/server/store"
 )
 
@@ -105,8 +107,13 @@ type Server struct {
 	enroll      *enroll.Service
 	jobs        *jobs.Dispatcher
 	vm          *metrics.VMWriter
+	auth        *auth.Service
+	pin         string
 	gw          *gateway.Gateway
 }
+
+// Auth returns the operator authentication service.
+func (s *Server) Auth() *auth.Service { return s.auth }
 
 // New loads the PKI from cfg.PKIDir, connects to the database and prepares the
 // services. Call Close when done.
@@ -155,6 +162,15 @@ func New(ctx context.Context, cfg Config, log *slog.Logger, opts ...Option) (*Se
 		log.Info("created command signing key", "file", filepath.Join(cfg.PKIDir, pki.CommandKeyFile))
 	}
 	signer := command.NewSigner(cmdKey)
+	box, created, err := secretbox.LoadOrCreate(cfg.PKIDir)
+	if err != nil {
+		st.Close()
+		return nil, fmt.Errorf("secrets key: %w", err)
+	}
+	if created {
+		log.Info("created secrets key", "file", filepath.Join(cfg.PKIDir, secretbox.KeyFile))
+	}
+	authSvc := auth.NewService(st, box, log.With("component", "auth"))
 
 	revocations := fleet.Revocations{Q: st.Queries}
 	enrollSvc := enroll.NewService(st, ca, enroll.Options{
@@ -188,6 +204,8 @@ func New(ctx context.Context, cfg Config, log *slog.Logger, opts ...Option) (*Se
 		enroll:      enrollSvc,
 		jobs:        dispatcher,
 		vm:          vm,
+		auth:        authSvc,
+		pin:         pki.SPKIFingerprint(certs[0]),
 		gw:          gw,
 	}, nil
 }
@@ -293,6 +311,13 @@ func (s *Server) apiHTTPServer() *http.Server {
 	mux.Handle(operatorv1connect.NewHealthServiceHandler(&api.Health{}, connect.WithReadMaxBytes(64<<10)))
 	mux.Handle(s.enroll.Handler())
 
+	// Operator API: every call needs a session except Login.
+	authn := connect.WithInterceptors(api.NewAuthInterceptor(s.auth, operatorv1connect.AuthServiceLoginProcedure))
+	limit := connect.WithReadMaxBytes(1 << 20)
+	mux.Handle(operatorv1connect.NewAuthServiceHandler(&api.AuthServer{Auth: s.auth, Store: s.st}, authn, limit))
+	mux.Handle(operatorv1connect.NewFleetServiceHandler(&api.FleetServer{Store: s.st, Pin: s.pin, APIURL: s.cfg.PublicAPIURL}, authn, limit))
+	mux.Handle(operatorv1connect.NewActionServiceHandler(&api.ActionServer{Store: s.st}, authn, limit))
+
 	protocols := new(http.Protocols)
 	protocols.SetHTTP1(true)
 	protocols.SetHTTP2(true)
@@ -305,9 +330,10 @@ func (s *Server) apiHTTPServer() *http.Server {
 		Protocols:         protocols,
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
-		WriteTimeout:      60 * time.Second,
-		IdleTimeout:       2 * time.Minute,
-		MaxHeaderBytes:    32 << 10,
-		ErrorLog:          slog.NewLogLogger(s.log.Handler(), slog.LevelWarn),
+		// ActionService.Run may wait up to 180 s for an agent.
+		WriteTimeout:   200 * time.Second,
+		IdleTimeout:    2 * time.Minute,
+		MaxHeaderBytes: 32 << 10,
+		ErrorLog:       slog.NewLogLogger(s.log.Handler(), slog.LevelWarn),
 	}
 }

@@ -24,7 +24,9 @@ traffic, disk cleanup, swap, timezone, security checks, domains and TLS.
 make dev-up dev-migrate dev-pki   # PostgreSQL + VictoriaMetrics, schema, local CA
 make dev-server                   # terminal 1
 make dev-enroll dev-agent         # terminal 2: enroll an agent with a one-time token, run it
-bin/sm-server servers list --config deploy/dev/sm-server.yaml
+bin/sm-server users create you@example.com --role owner --config deploy/dev/sm-server.yaml
+bin/smctl login --server https://127.0.0.1:8444 --ca-file .dev/pki/root.crt
+bin/smctl dashboard
 ```
 
 See the [development guide](docs/DEVELOPMENT.md) for the database, tests and VMs.
@@ -39,8 +41,9 @@ See the [development guide](docs/DEVELOPMENT.md) for the database, tests and VMs
 ## Status
 
 - **Phase 0 (foundations):** done.
-- **Phase 1 (MVP):** in progress. Done: token enrollment, certificate renewal,
+- **Phase 1 (MVP):** nearly done. Done: token enrollment, certificate renewal,
   database-backed revocation, hash-chained audit log, signed command dispatch, the
   privileged helper, system/services/processes actions, metrics with a fleet dashboard,
-  and journal/SSH/sudo logs. Next: user authentication and RBAC (moving the commands to
-  `smctl`), packaging and VM tests. See the [development plan](docs/DEVELOPMENT_PLAN.md).
+  journal/SSH/sudo logs, MFA login with sessions, RBAC per server group, and `smctl`.
+  Remaining: packaging, install script and VM tests. See the
+  [development plan](docs/DEVELOPMENT_PLAN.md).

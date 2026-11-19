@@ -97,7 +97,12 @@ func startControlPlaneWith(t *testing.T, mutate func(*server.Config), opts ...se
 // enrollAgent runs the real enrollment flow and returns the agent configuration.
 func (cp *controlPlane) enrollAgent(t *testing.T, name string) (agent.Config, agent.EnrollResult) {
 	t.Helper()
-	tok, err := enroll.CreateToken(context.Background(), cp.srv.Store(), enroll.TokenRequest{ServerName: name, Actor: "test"})
+	return cp.enrollAgentInGroup(t, name, "")
+}
+
+func (cp *controlPlane) enrollAgentInGroup(t *testing.T, name, group string) (agent.Config, agent.EnrollResult) {
+	t.Helper()
+	tok, err := enroll.CreateToken(context.Background(), cp.srv.Store(), enroll.TokenRequest{ServerName: name, GroupName: group, Actor: "test"})
 	if err != nil {
 		t.Fatal(err)
 	}
