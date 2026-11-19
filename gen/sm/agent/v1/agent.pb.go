@@ -23,6 +23,96 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type RenewCertificateRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// DER-encoded PKCS#10 certificate request. Only its public key is used.
+	Csr           []byte `protobuf:"bytes,1,opt,name=csr,proto3" json:"csr,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RenewCertificateRequest) Reset() {
+	*x = RenewCertificateRequest{}
+	mi := &file_sm_agent_v1_agent_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenewCertificateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenewCertificateRequest) ProtoMessage() {}
+
+func (x *RenewCertificateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_agent_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenewCertificateRequest.ProtoReflect.Descriptor instead.
+func (*RenewCertificateRequest) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_agent_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *RenewCertificateRequest) GetCsr() []byte {
+	if x != nil {
+		return x.Csr
+	}
+	return nil
+}
+
+type RenewCertificateResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// DER certificates: the new agent certificate followed by the intermediate CA.
+	CertificateChain [][]byte `protobuf:"bytes,1,rep,name=certificate_chain,json=certificateChain,proto3" json:"certificate_chain,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *RenewCertificateResponse) Reset() {
+	*x = RenewCertificateResponse{}
+	mi := &file_sm_agent_v1_agent_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenewCertificateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenewCertificateResponse) ProtoMessage() {}
+
+func (x *RenewCertificateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_agent_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenewCertificateResponse.ProtoReflect.Descriptor instead.
+func (*RenewCertificateResponse) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_agent_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *RenewCertificateResponse) GetCertificateChain() [][]byte {
+	if x != nil {
+		return x.CertificateChain
+	}
+	return nil
+}
+
 // ConnectRequest is a message sent from the agent to the control plane.
 type ConnectRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -37,7 +127,7 @@ type ConnectRequest struct {
 
 func (x *ConnectRequest) Reset() {
 	*x = ConnectRequest{}
-	mi := &file_sm_agent_v1_agent_proto_msgTypes[0]
+	mi := &file_sm_agent_v1_agent_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -49,7 +139,7 @@ func (x *ConnectRequest) String() string {
 func (*ConnectRequest) ProtoMessage() {}
 
 func (x *ConnectRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sm_agent_v1_agent_proto_msgTypes[0]
+	mi := &file_sm_agent_v1_agent_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -62,7 +152,7 @@ func (x *ConnectRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConnectRequest.ProtoReflect.Descriptor instead.
 func (*ConnectRequest) Descriptor() ([]byte, []int) {
-	return file_sm_agent_v1_agent_proto_rawDescGZIP(), []int{0}
+	return file_sm_agent_v1_agent_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ConnectRequest) GetPayload() isConnectRequest_Payload {
@@ -120,7 +210,7 @@ type ConnectResponse struct {
 
 func (x *ConnectResponse) Reset() {
 	*x = ConnectResponse{}
-	mi := &file_sm_agent_v1_agent_proto_msgTypes[1]
+	mi := &file_sm_agent_v1_agent_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -132,7 +222,7 @@ func (x *ConnectResponse) String() string {
 func (*ConnectResponse) ProtoMessage() {}
 
 func (x *ConnectResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sm_agent_v1_agent_proto_msgTypes[1]
+	mi := &file_sm_agent_v1_agent_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -145,7 +235,7 @@ func (x *ConnectResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConnectResponse.ProtoReflect.Descriptor instead.
 func (*ConnectResponse) Descriptor() ([]byte, []int) {
-	return file_sm_agent_v1_agent_proto_rawDescGZIP(), []int{1}
+	return file_sm_agent_v1_agent_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ConnectResponse) GetPayload() isConnectResponse_Payload {
@@ -201,7 +291,7 @@ type Hello struct {
 
 func (x *Hello) Reset() {
 	*x = Hello{}
-	mi := &file_sm_agent_v1_agent_proto_msgTypes[2]
+	mi := &file_sm_agent_v1_agent_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -213,7 +303,7 @@ func (x *Hello) String() string {
 func (*Hello) ProtoMessage() {}
 
 func (x *Hello) ProtoReflect() protoreflect.Message {
-	mi := &file_sm_agent_v1_agent_proto_msgTypes[2]
+	mi := &file_sm_agent_v1_agent_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -226,7 +316,7 @@ func (x *Hello) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Hello.ProtoReflect.Descriptor instead.
 func (*Hello) Descriptor() ([]byte, []int) {
-	return file_sm_agent_v1_agent_proto_rawDescGZIP(), []int{2}
+	return file_sm_agent_v1_agent_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Hello) GetAgentVersion() string {
@@ -264,7 +354,7 @@ type HostFacts struct {
 
 func (x *HostFacts) Reset() {
 	*x = HostFacts{}
-	mi := &file_sm_agent_v1_agent_proto_msgTypes[3]
+	mi := &file_sm_agent_v1_agent_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -276,7 +366,7 @@ func (x *HostFacts) String() string {
 func (*HostFacts) ProtoMessage() {}
 
 func (x *HostFacts) ProtoReflect() protoreflect.Message {
-	mi := &file_sm_agent_v1_agent_proto_msgTypes[3]
+	mi := &file_sm_agent_v1_agent_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -289,7 +379,7 @@ func (x *HostFacts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostFacts.ProtoReflect.Descriptor instead.
 func (*HostFacts) Descriptor() ([]byte, []int) {
-	return file_sm_agent_v1_agent_proto_rawDescGZIP(), []int{3}
+	return file_sm_agent_v1_agent_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *HostFacts) GetHostname() string {
@@ -353,7 +443,7 @@ type Heartbeat struct {
 
 func (x *Heartbeat) Reset() {
 	*x = Heartbeat{}
-	mi := &file_sm_agent_v1_agent_proto_msgTypes[4]
+	mi := &file_sm_agent_v1_agent_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -365,7 +455,7 @@ func (x *Heartbeat) String() string {
 func (*Heartbeat) ProtoMessage() {}
 
 func (x *Heartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_sm_agent_v1_agent_proto_msgTypes[4]
+	mi := &file_sm_agent_v1_agent_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -378,7 +468,7 @@ func (x *Heartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
 func (*Heartbeat) Descriptor() ([]byte, []int) {
-	return file_sm_agent_v1_agent_proto_rawDescGZIP(), []int{4}
+	return file_sm_agent_v1_agent_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Heartbeat) GetSeq() uint64 {
@@ -409,7 +499,7 @@ type Welcome struct {
 
 func (x *Welcome) Reset() {
 	*x = Welcome{}
-	mi := &file_sm_agent_v1_agent_proto_msgTypes[5]
+	mi := &file_sm_agent_v1_agent_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -421,7 +511,7 @@ func (x *Welcome) String() string {
 func (*Welcome) ProtoMessage() {}
 
 func (x *Welcome) ProtoReflect() protoreflect.Message {
-	mi := &file_sm_agent_v1_agent_proto_msgTypes[5]
+	mi := &file_sm_agent_v1_agent_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -434,7 +524,7 @@ func (x *Welcome) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Welcome.ProtoReflect.Descriptor instead.
 func (*Welcome) Descriptor() ([]byte, []int) {
-	return file_sm_agent_v1_agent_proto_rawDescGZIP(), []int{5}
+	return file_sm_agent_v1_agent_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Welcome) GetServerId() string {
@@ -469,7 +559,7 @@ type HeartbeatAck struct {
 
 func (x *HeartbeatAck) Reset() {
 	*x = HeartbeatAck{}
-	mi := &file_sm_agent_v1_agent_proto_msgTypes[6]
+	mi := &file_sm_agent_v1_agent_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -481,7 +571,7 @@ func (x *HeartbeatAck) String() string {
 func (*HeartbeatAck) ProtoMessage() {}
 
 func (x *HeartbeatAck) ProtoReflect() protoreflect.Message {
-	mi := &file_sm_agent_v1_agent_proto_msgTypes[6]
+	mi := &file_sm_agent_v1_agent_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -494,7 +584,7 @@ func (x *HeartbeatAck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatAck.ProtoReflect.Descriptor instead.
 func (*HeartbeatAck) Descriptor() ([]byte, []int) {
-	return file_sm_agent_v1_agent_proto_rawDescGZIP(), []int{6}
+	return file_sm_agent_v1_agent_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *HeartbeatAck) GetSeq() uint64 {
@@ -515,7 +605,11 @@ var File_sm_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_sm_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x17sm/agent/v1/agent.proto\x12\vsm.agent.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x7f\n" +
+	"\x17sm/agent/v1/agent.proto\x12\vsm.agent.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"+\n" +
+	"\x17RenewCertificateRequest\x12\x10\n" +
+	"\x03csr\x18\x01 \x01(\fR\x03csr\"G\n" +
+	"\x18RenewCertificateResponse\x12+\n" +
+	"\x11certificate_chain\x18\x01 \x03(\fR\x10certificateChain\"\x7f\n" +
 	"\x0eConnectRequest\x12*\n" +
 	"\x05hello\x18\x01 \x01(\v2\x12.sm.agent.v1.HelloH\x00R\x05hello\x126\n" +
 	"\theartbeat\x18\x02 \x01(\v2\x16.sm.agent.v1.HeartbeatH\x00R\theartbeatB\t\n" +
@@ -546,9 +640,10 @@ const file_sm_agent_v1_agent_proto_rawDesc = "" +
 	"\fHeartbeatAck\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x04R\x03seq\x12;\n" +
 	"\vserver_time\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"serverTime2X\n" +
+	"serverTime2\xb9\x01\n" +
 	"\fAgentService\x12H\n" +
-	"\aConnect\x12\x1b.sm.agent.v1.ConnectRequest\x1a\x1c.sm.agent.v1.ConnectResponse(\x010\x01B\xaf\x01\n" +
+	"\aConnect\x12\x1b.sm.agent.v1.ConnectRequest\x1a\x1c.sm.agent.v1.ConnectResponse(\x010\x01\x12_\n" +
+	"\x10RenewCertificate\x12$.sm.agent.v1.RenewCertificateRequest\x1a%.sm.agent.v1.RenewCertificateResponseB\xaf\x01\n" +
 	"\x0fcom.sm.agent.v1B\n" +
 	"AgentProtoP\x01ZBgithub.com/monirujjaman-dev/server-manager/gen/sm/agent/v1;agentv1\xa2\x02\x03SAX\xaa\x02\vSm.Agent.V1\xca\x02\vSm\\Agent\\V1\xe2\x02\x17Sm\\Agent\\V1\\GPBMetadata\xea\x02\rSm::Agent::V1b\x06proto3"
 
@@ -564,33 +659,37 @@ func file_sm_agent_v1_agent_proto_rawDescGZIP() []byte {
 	return file_sm_agent_v1_agent_proto_rawDescData
 }
 
-var file_sm_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_sm_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_sm_agent_v1_agent_proto_goTypes = []any{
-	(*ConnectRequest)(nil),        // 0: sm.agent.v1.ConnectRequest
-	(*ConnectResponse)(nil),       // 1: sm.agent.v1.ConnectResponse
-	(*Hello)(nil),                 // 2: sm.agent.v1.Hello
-	(*HostFacts)(nil),             // 3: sm.agent.v1.HostFacts
-	(*Heartbeat)(nil),             // 4: sm.agent.v1.Heartbeat
-	(*Welcome)(nil),               // 5: sm.agent.v1.Welcome
-	(*HeartbeatAck)(nil),          // 6: sm.agent.v1.HeartbeatAck
-	(*timestamppb.Timestamp)(nil), // 7: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),   // 8: google.protobuf.Duration
+	(*RenewCertificateRequest)(nil),  // 0: sm.agent.v1.RenewCertificateRequest
+	(*RenewCertificateResponse)(nil), // 1: sm.agent.v1.RenewCertificateResponse
+	(*ConnectRequest)(nil),           // 2: sm.agent.v1.ConnectRequest
+	(*ConnectResponse)(nil),          // 3: sm.agent.v1.ConnectResponse
+	(*Hello)(nil),                    // 4: sm.agent.v1.Hello
+	(*HostFacts)(nil),                // 5: sm.agent.v1.HostFacts
+	(*Heartbeat)(nil),                // 6: sm.agent.v1.Heartbeat
+	(*Welcome)(nil),                  // 7: sm.agent.v1.Welcome
+	(*HeartbeatAck)(nil),             // 8: sm.agent.v1.HeartbeatAck
+	(*timestamppb.Timestamp)(nil),    // 9: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),      // 10: google.protobuf.Duration
 }
 var file_sm_agent_v1_agent_proto_depIdxs = []int32{
-	2,  // 0: sm.agent.v1.ConnectRequest.hello:type_name -> sm.agent.v1.Hello
-	4,  // 1: sm.agent.v1.ConnectRequest.heartbeat:type_name -> sm.agent.v1.Heartbeat
-	5,  // 2: sm.agent.v1.ConnectResponse.welcome:type_name -> sm.agent.v1.Welcome
-	6,  // 3: sm.agent.v1.ConnectResponse.heartbeat_ack:type_name -> sm.agent.v1.HeartbeatAck
-	3,  // 4: sm.agent.v1.Hello.host:type_name -> sm.agent.v1.HostFacts
-	7,  // 5: sm.agent.v1.HostFacts.boot_time:type_name -> google.protobuf.Timestamp
-	7,  // 6: sm.agent.v1.Heartbeat.sent_at:type_name -> google.protobuf.Timestamp
-	8,  // 7: sm.agent.v1.Welcome.heartbeat_interval:type_name -> google.protobuf.Duration
-	7,  // 8: sm.agent.v1.Welcome.server_time:type_name -> google.protobuf.Timestamp
-	7,  // 9: sm.agent.v1.HeartbeatAck.server_time:type_name -> google.protobuf.Timestamp
-	0,  // 10: sm.agent.v1.AgentService.Connect:input_type -> sm.agent.v1.ConnectRequest
-	1,  // 11: sm.agent.v1.AgentService.Connect:output_type -> sm.agent.v1.ConnectResponse
-	11, // [11:12] is the sub-list for method output_type
-	10, // [10:11] is the sub-list for method input_type
+	4,  // 0: sm.agent.v1.ConnectRequest.hello:type_name -> sm.agent.v1.Hello
+	6,  // 1: sm.agent.v1.ConnectRequest.heartbeat:type_name -> sm.agent.v1.Heartbeat
+	7,  // 2: sm.agent.v1.ConnectResponse.welcome:type_name -> sm.agent.v1.Welcome
+	8,  // 3: sm.agent.v1.ConnectResponse.heartbeat_ack:type_name -> sm.agent.v1.HeartbeatAck
+	5,  // 4: sm.agent.v1.Hello.host:type_name -> sm.agent.v1.HostFacts
+	9,  // 5: sm.agent.v1.HostFacts.boot_time:type_name -> google.protobuf.Timestamp
+	9,  // 6: sm.agent.v1.Heartbeat.sent_at:type_name -> google.protobuf.Timestamp
+	10, // 7: sm.agent.v1.Welcome.heartbeat_interval:type_name -> google.protobuf.Duration
+	9,  // 8: sm.agent.v1.Welcome.server_time:type_name -> google.protobuf.Timestamp
+	9,  // 9: sm.agent.v1.HeartbeatAck.server_time:type_name -> google.protobuf.Timestamp
+	2,  // 10: sm.agent.v1.AgentService.Connect:input_type -> sm.agent.v1.ConnectRequest
+	0,  // 11: sm.agent.v1.AgentService.RenewCertificate:input_type -> sm.agent.v1.RenewCertificateRequest
+	3,  // 12: sm.agent.v1.AgentService.Connect:output_type -> sm.agent.v1.ConnectResponse
+	1,  // 13: sm.agent.v1.AgentService.RenewCertificate:output_type -> sm.agent.v1.RenewCertificateResponse
+	12, // [12:14] is the sub-list for method output_type
+	10, // [10:12] is the sub-list for method input_type
 	10, // [10:10] is the sub-list for extension type_name
 	10, // [10:10] is the sub-list for extension extendee
 	0,  // [0:10] is the sub-list for field type_name
@@ -601,11 +700,11 @@ func file_sm_agent_v1_agent_proto_init() {
 	if File_sm_agent_v1_agent_proto != nil {
 		return
 	}
-	file_sm_agent_v1_agent_proto_msgTypes[0].OneofWrappers = []any{
+	file_sm_agent_v1_agent_proto_msgTypes[2].OneofWrappers = []any{
 		(*ConnectRequest_Hello)(nil),
 		(*ConnectRequest_Heartbeat)(nil),
 	}
-	file_sm_agent_v1_agent_proto_msgTypes[1].OneofWrappers = []any{
+	file_sm_agent_v1_agent_proto_msgTypes[3].OneofWrappers = []any{
 		(*ConnectResponse_Welcome)(nil),
 		(*ConnectResponse_HeartbeatAck)(nil),
 	}
@@ -615,7 +714,7 @@ func file_sm_agent_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_sm_agent_v1_agent_proto_rawDesc), len(file_sm_agent_v1_agent_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

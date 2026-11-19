@@ -15,7 +15,7 @@ SELECT * FROM servers WHERE id = $1;
 -- name: ListServers :many
 SELECT * FROM servers ORDER BY name;
 
--- name: UpdateServerFacts :exec
+-- name: UpdateServerFacts :execrows
 UPDATE servers SET
     hostname       = $2,
     os             = $3,
@@ -29,9 +29,27 @@ UPDATE servers SET
     updated_at     = now()
 WHERE id = $1 AND status <> 'revoked';
 
--- name: MarkServerSeen :exec
+-- name: MarkServerSeen :execrows
 UPDATE servers SET last_seen_at = now(), status = 'online'
 WHERE id = $1 AND status <> 'revoked';
 
 -- name: SetServerStatus :exec
 UPDATE servers SET status = $2, updated_at = now() WHERE id = $1;
+
+-- name: GetServerByName :one
+SELECT * FROM servers WHERE name = $1;
+
+-- name: GetServerGroupByName :one
+SELECT * FROM server_groups WHERE name = $1;
+
+-- name: RevokeServer :execrows
+UPDATE servers SET status = 'revoked', updated_at = now()
+WHERE id = $1 AND status <> 'revoked';
+
+-- name: SetServerOffline :exec
+UPDATE servers SET status = 'offline', updated_at = now()
+WHERE id = $1 AND status = 'online';
+
+-- name: MarkOnlineServersOffline :execrows
+-- Run at control-plane start: sessions from a previous process no longer exist.
+UPDATE servers SET status = 'offline', updated_at = now() WHERE status = 'online';

@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package sm.agent.v1;
+
+import "sm/agent/v1/agent.proto";
+
+// EnrollmentService is served on the control plane's API listener (server TLS only),
+// because a new agent has no client certificate yet. The agent authenticates the
+// control plane by pinning its public key, and the control plane authenticates the
+// agent with a one-time enrollment token.
+service EnrollmentService {
+  // Enroll exchanges a one-time token and a CSR for an agent certificate.
+  rpc Enroll(EnrollRequest) returns (EnrollResponse);
+}
+
+message EnrollRequest {
+  // One-time enrollment token from `sm-server enroll create-token`.
+  string token = 1;
+  // DER-encoded PKCS#10 certificate request. Only its public key is used.
+  bytes csr = 2;
+  string agent_version = 3;
+  HostFacts host = 4;
+}
+
+message EnrollResponse {
+  // Server UUID; also the identity in the issued certificate.
+  string server_id = 1;
+  string server_name = 2;
+  // DER certificates: the agent certificate followed by the intermediate CA.
+  repeated bytes certificate_chain = 3;
+  // DER root CA certificate the agent uses to verify the control plane from now on.
+  bytes ca_certificate = 4;
+  // Agent gateway URL, e.g. https://cp.internal:8443. Empty if not configured.
+  string agent_url = 5;
+}

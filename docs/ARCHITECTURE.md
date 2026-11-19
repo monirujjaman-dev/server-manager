@@ -101,29 +101,47 @@ systemd units, so there is one file to install and update.
 - Metrics and events are buffered on disk on the agent (bounded ring buffer, 50 MB
   default) while disconnected, then replayed.
 
-### 3.2 Enrollment
+### 3.2 Enrollment and certificate lifecycle
 
 ```mermaid
 sequenceDiagram
-    participant Op as Operator (smctl)
+    participant Op as Operator (sm-server CLI, later smctl)
     participant CP as sm-server
     participant Ag as sm-agent (new server)
 
-    Op->>CP: create enrollment token (server group, TTL 15 min, single use)
-    CP-->>Op: token + install command
-    Op->>Ag: run install command on the server
+    Op->>CP: enroll create-token --name web-1 --group production (TTL 15 min, single use)
+    CP-->>Op: token + public-key pin + enroll command
+    Op->>Ag: sm-agent enroll --server … --pin … --token …
     Ag->>Ag: generate Ed25519 key pair locally (private key never leaves the host)
-    Ag->>CP: Enroll(token, CSR, host facts) over TLS — server cert pinned
-    CP->>CP: verify token, mark used, sign CSR with internal CA (30-day cert)
-    CP-->>Ag: client certificate + CA bundle + command-verification public key
-    Ag->>CP: open mTLS stream with new certificate
-    Note over Ag,CP: certificate auto-renews at 2/3 of its lifetime
+    Ag->>CP: EnrollmentService.Enroll(token, CSR, host facts) on the API listener, server key pinned
+    CP->>CP: consume token atomically, create server row, sign CSR (30-day cert), record serial, audit — one transaction
+    CP-->>Ag: certificate chain + root CA + agent gateway URL
+    Ag->>CP: open mTLS stream on the agent listener with the new certificate
+    Note over Ag,CP: after 2/3 of the lifetime the agent calls AgentService.RenewCertificate over mTLS
 ```
 
-- The control plane's TLS certificate fingerprint is embedded in the install
-  command, so a new agent cannot be tricked by a man-in-the-middle during enrollment.
-- Revoking a server deletes its certificate record; the gateway checks every
-  connection against the database, so revocation is immediate (no CRL lag).
+- **Where:** enrollment is served on the API listener (server TLS only), because a new
+  agent has no client certificate yet. The agent listener accepts nothing without a
+  valid client certificate.
+- **Trust on first contact:** the agent verifies the control plane by the SHA-256 of its
+  public key (printed with the token), not by a CA it does not have yet. A wrong pin
+  aborts before the token is sent. After enrollment the agent checks that the pinned
+  certificate chains to the CA it received.
+- **Tokens:** 32 random bytes with an `smenr_` prefix; only the SHA-256 is stored. A token
+  names the server and group it enrolls, so an agent cannot choose its identity. Failed
+  attempts are rate-limited per IP and audited without revealing why they failed.
+- **Every issued certificate is recorded.** A certificate whose serial is not in
+  `agent_certificates` is rejected even if the CA signed it, so a leaked intermediate
+  key cannot mint working agent certificates without database access too.
+- **Revocation** (`sm-server servers revoke`) marks the server and its certificates
+  revoked. New TLS handshakes and new streams are refused immediately (the check runs
+  per handshake and per stream, because HTTP/2 reuses connections); an open stream is
+  closed at its next heartbeat. Streams also end when the certificate that opened them
+  expires.
+- **Renewal** keeps the agent's key and replaces only the certificate file (atomic
+  rename). The control plane renews only certificates past half their lifetime. The
+  agent then reconnects so the new certificate is used. An expired certificate cannot be
+  renewed; the server must be re-enrolled.
 
 ### 3.3 Command flow
 

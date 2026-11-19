@@ -1,21 +1,23 @@
 package pki
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
 	"math/big"
 	"sync"
+	"time"
 )
 
 // RevocationChecker reports whether a certificate serial number has been revoked.
 // Implementations must fail closed: an error rejects the connection.
 type RevocationChecker interface {
-	IsRevoked(serial *big.Int) (bool, error)
+	IsRevoked(ctx context.Context, serial *big.Int) (bool, error)
 }
 
-// RevocationList is an in-memory RevocationChecker. Phase 1 replaces it with a
-// database-backed checker so revocation is shared by all control-plane replicas.
+// RevocationList is an in-memory RevocationChecker for tests. The control plane uses a
+// database-backed checker so revocation is shared by all replicas and survives restarts.
 type RevocationList struct {
 	mu      sync.RWMutex
 	revoked map[string]struct{}
@@ -34,7 +36,7 @@ func (l *RevocationList) Revoke(serial *big.Int) {
 }
 
 // IsRevoked implements RevocationChecker.
-func (l *RevocationList) IsRevoked(serial *big.Int) (bool, error) {
+func (l *RevocationList) IsRevoked(_ context.Context, serial *big.Int) (bool, error) {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 	_, ok := l.revoked[serial.Text(16)]
@@ -56,7 +58,10 @@ func VerifyAgentConnection(rc RevocationChecker) func(tls.ConnectionState) error
 		if _, err := AgentID(leaf); err != nil {
 			return err
 		}
-		revoked, err := rc.IsRevoked(leaf.SerialNumber)
+		// tls.Config.VerifyConnection has no context; bound the lookup instead.
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		revoked, err := rc.IsRevoked(ctx, leaf.SerialNumber)
 		if err != nil {
 			return fmt.Errorf("revocation check: %w", err)
 		}

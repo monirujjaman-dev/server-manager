@@ -1,47 +1,31 @@
-package store
+package store_test
 
 import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/monirujjaman-dev/server-manager/internal/server/store"
 	"github.com/monirujjaman-dev/server-manager/internal/server/store/db"
+	"github.com/monirujjaman-dev/server-manager/internal/server/store/storetest"
 )
 
-// These tests need a dedicated, disposable PostgreSQL database:
-//
-//	SM_TEST_DATABASE_URL=postgres://user@127.0.0.1:5432/sm_test go test ./internal/server/store/
-//
-// The schema in that database is dropped and recreated.
-func testURL(t *testing.T) string {
-	t.Helper()
-	url := os.Getenv("SM_TEST_DATABASE_URL")
-	if url == "" {
-		t.Skip("SM_TEST_DATABASE_URL not set")
-	}
-	return url
-}
-
 func TestMigrationsAndQueries(t *testing.T) {
-	url := testURL(t)
+	url := storetest.NewDatabase(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	m, err := NewMigrator(url)
+	m, err := store.NewMigrator(url)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = m.Close() }()
-	if err := m.DownTo(ctx, 0); err != nil {
-		t.Fatalf("reset: %v", err)
-	}
-	if n, err := m.Up(ctx); err != nil || n == 0 {
-		t.Fatalf("up: applied %d, %v", n, err)
+	if n, err := m.Up(ctx); err != nil || n != 0 {
+		t.Fatalf("up on migrated database: applied %d, %v", n, err)
 	}
 	st, err := m.Status(ctx)
 	if err != nil {
@@ -53,7 +37,7 @@ func TestMigrationsAndQueries(t *testing.T) {
 		}
 	}
 
-	s, err := Open(ctx, url)
+	s, err := store.Open(ctx, url)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,10 +55,10 @@ func TestMigrationsAndQueries(t *testing.T) {
 		if _, err := s.CreateServer(ctx, db.CreateServerParams{ID: uuid.New(), Name: "Bad Name!"}); err == nil {
 			t.Error("invalid server name accepted")
 		}
-		if err := s.UpdateServerFacts(ctx, db.UpdateServerFactsParams{
+		if n, err := s.UpdateServerFacts(ctx, db.UpdateServerFactsParams{
 			ID: id, Hostname: "web-1.internal", OS: "linux", Arch: "amd64", Distro: "ubuntu", DistroVersion: "24.04", AgentVersion: "v0.0.1",
-		}); err != nil {
-			t.Fatal(err)
+		}); err != nil || n != 1 {
+			t.Fatalf("update facts: %d rows, %v", n, err)
 		}
 		got, err := s.GetServer(ctx, id)
 		if err != nil {
@@ -88,8 +72,8 @@ func TestMigrationsAndQueries(t *testing.T) {
 		if err := s.SetServerStatus(ctx, db.SetServerStatusParams{ID: id, Status: "revoked"}); err != nil {
 			t.Fatal(err)
 		}
-		if err := s.MarkServerSeen(ctx, id); err != nil {
-			t.Fatal(err)
+		if n, err := s.MarkServerSeen(ctx, id); err != nil || n != 0 {
+			t.Fatalf("mark seen on revoked server: %d rows, %v", n, err)
 		}
 		if got, _ := s.GetServer(ctx, id); got.Status != "revoked" {
 			t.Errorf("revoked server status changed to %q", got.Status)

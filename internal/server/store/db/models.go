@@ -12,6 +12,15 @@ import (
 	"github.com/google/uuid"
 )
 
+type AgentCertificate struct {
+	Serial    string
+	ServerID  uuid.UUID
+	NotBefore time.Time
+	NotAfter  time.Time
+	RevokedAt *time.Time
+	CreatedAt time.Time
+}
+
 type AuditEvent struct {
 	ID        int64
 	Ts        time.Time
@@ -24,6 +33,18 @@ type AuditEvent struct {
 	Result    string
 	PrevHash  []byte
 	Hash      []byte
+}
+
+type EnrollmentToken struct {
+	ID         uuid.UUID
+	TokenHash  []byte
+	ServerName string
+	GroupID    *uuid.UUID
+	CreatedBy  string
+	CreatedAt  time.Time
+	ExpiresAt  time.Time
+	UsedAt     *time.Time
+	ServerID   *uuid.UUID
 }
 
 type Server struct {
