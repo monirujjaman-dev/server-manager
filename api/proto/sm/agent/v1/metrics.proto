@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package sm.agent.v1;
+
+import "google/protobuf/timestamp.proto";
+import "sm/agent/v1/actions.proto";
+
+// MetricsBatch is one collection pushed by the agent on its stream. Agents buffer
+// batches while disconnected and send them after reconnecting, oldest first.
+message MetricsBatch {
+  google.protobuf.Timestamp collected_at = 1;
+  HostMetrics host = 2;
+}
+
+message HostMetrics {
+  // Average busy time of all CPUs since the previous collection, 0-100.
+  double cpu_percent = 1;
+  uint32 cpu_count = 2;
+  double load1 = 3;
+  double load5 = 4;
+  double load15 = 5;
+  uint64 memory_total_bytes = 6;
+  uint64 memory_available_bytes = 7;
+  uint64 swap_total_bytes = 8;
+  uint64 swap_free_bytes = 9;
+  uint64 uptime_seconds = 10;
+  repeated Filesystem filesystems = 11;
+  repeated NetworkInterface interfaces = 12;
+}
+
+message NetworkInterface {
+  string name = 1;
+  // Cumulative counters since boot.
+  uint64 rx_bytes = 2;
+  uint64 tx_bytes = 3;
+  uint64 rx_errors = 4;
+  uint64 tx_errors = 5;
+  // Rates since the previous collection.
+  double rx_bytes_per_second = 6;
+  double tx_bytes_per_second = 7;
+}

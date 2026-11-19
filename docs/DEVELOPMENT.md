@@ -64,7 +64,15 @@ sm-server services list web-1 --filter nginx
 sm-server services restart web-1 nginx
 sm-server processes list web-1 --sort mem --limit 20
 sm-server processes kill web-1 1234 --start 567890 --yes   # medium risk: needs --yes
+
+sm-server dashboard --watch 5s
+sm-server logs web-1 --unit nginx --priority err --since 2h
+sm-server logs web-1 --unit nginx --follow
+sm-server logins web-1 --failed
 ```
+
+Set `victoriametrics_url: http://127.0.0.1:8428` (the dev compose service) to keep
+metric history; query it with PromQL, e.g. `sm_cpu_percent{server_id="…"}`.
 
 Privileged actions (service control, signals) need the helper. On a real server it runs
 from `deploy/systemd/sm-agent-privd.service`; locally, run it as root next to the agent

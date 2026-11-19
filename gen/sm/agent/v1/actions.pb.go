@@ -253,6 +253,64 @@ func (Signal) EnumDescriptor() ([]byte, []int) {
 	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{3}
 }
 
+type AuthEventKind int32
+
+const (
+	AuthEventKind_AUTH_EVENT_KIND_UNSPECIFIED      AuthEventKind = 0
+	AuthEventKind_AUTH_EVENT_KIND_SSH_ACCEPTED     AuthEventKind = 1
+	AuthEventKind_AUTH_EVENT_KIND_SSH_FAILED       AuthEventKind = 2
+	AuthEventKind_AUTH_EVENT_KIND_SSH_INVALID_USER AuthEventKind = 3
+	AuthEventKind_AUTH_EVENT_KIND_SUDO             AuthEventKind = 4
+	AuthEventKind_AUTH_EVENT_KIND_SUDO_FAILED      AuthEventKind = 5
+)
+
+// Enum value maps for AuthEventKind.
+var (
+	AuthEventKind_name = map[int32]string{
+		0: "AUTH_EVENT_KIND_UNSPECIFIED",
+		1: "AUTH_EVENT_KIND_SSH_ACCEPTED",
+		2: "AUTH_EVENT_KIND_SSH_FAILED",
+		3: "AUTH_EVENT_KIND_SSH_INVALID_USER",
+		4: "AUTH_EVENT_KIND_SUDO",
+		5: "AUTH_EVENT_KIND_SUDO_FAILED",
+	}
+	AuthEventKind_value = map[string]int32{
+		"AUTH_EVENT_KIND_UNSPECIFIED":      0,
+		"AUTH_EVENT_KIND_SSH_ACCEPTED":     1,
+		"AUTH_EVENT_KIND_SSH_FAILED":       2,
+		"AUTH_EVENT_KIND_SSH_INVALID_USER": 3,
+		"AUTH_EVENT_KIND_SUDO":             4,
+		"AUTH_EVENT_KIND_SUDO_FAILED":      5,
+	}
+)
+
+func (x AuthEventKind) Enum() *AuthEventKind {
+	p := new(AuthEventKind)
+	*p = x
+	return p
+}
+
+func (x AuthEventKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AuthEventKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_sm_agent_v1_actions_proto_enumTypes[4].Descriptor()
+}
+
+func (AuthEventKind) Type() protoreflect.EnumType {
+	return &file_sm_agent_v1_actions_proto_enumTypes[4]
+}
+
+func (x AuthEventKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AuthEventKind.Descriptor instead.
+func (AuthEventKind) EnumDescriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{4}
+}
+
 type CommandEnvelope struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Job UUID. Also the replay-protection key.
@@ -406,6 +464,8 @@ type ActionRequest struct {
 	//	*ActionRequest_ServiceControl
 	//	*ActionRequest_ProcessList
 	//	*ActionRequest_ProcessSignal
+	//	*ActionRequest_LogQuery
+	//	*ActionRequest_AuthLog
 	Action        isActionRequest_Action `protobuf_oneof:"action"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -493,6 +553,24 @@ func (x *ActionRequest) GetProcessSignal() *ProcessSignalRequest {
 	return nil
 }
 
+func (x *ActionRequest) GetLogQuery() *LogQueryRequest {
+	if x != nil {
+		if x, ok := x.Action.(*ActionRequest_LogQuery); ok {
+			return x.LogQuery
+		}
+	}
+	return nil
+}
+
+func (x *ActionRequest) GetAuthLog() *AuthLogRequest {
+	if x != nil {
+		if x, ok := x.Action.(*ActionRequest_AuthLog); ok {
+			return x.AuthLog
+		}
+	}
+	return nil
+}
+
 type isActionRequest_Action interface {
 	isActionRequest_Action()
 }
@@ -517,6 +595,14 @@ type ActionRequest_ProcessSignal struct {
 	ProcessSignal *ProcessSignalRequest `protobuf:"bytes,5,opt,name=process_signal,json=processSignal,proto3,oneof"`
 }
 
+type ActionRequest_LogQuery struct {
+	LogQuery *LogQueryRequest `protobuf:"bytes,6,opt,name=log_query,json=logQuery,proto3,oneof"`
+}
+
+type ActionRequest_AuthLog struct {
+	AuthLog *AuthLogRequest `protobuf:"bytes,7,opt,name=auth_log,json=authLog,proto3,oneof"`
+}
+
 func (*ActionRequest_SystemInfo) isActionRequest_Action() {}
 
 func (*ActionRequest_ServiceList) isActionRequest_Action() {}
@@ -526,6 +612,10 @@ func (*ActionRequest_ServiceControl) isActionRequest_Action() {}
 func (*ActionRequest_ProcessList) isActionRequest_Action() {}
 
 func (*ActionRequest_ProcessSignal) isActionRequest_Action() {}
+
+func (*ActionRequest_LogQuery) isActionRequest_Action() {}
+
+func (*ActionRequest_AuthLog) isActionRequest_Action() {}
 
 // CommandResult is sent from the agent to the control plane.
 type CommandResult struct {
@@ -607,6 +697,8 @@ type ActionResult struct {
 	//	*ActionResult_ServiceControl
 	//	*ActionResult_ProcessList
 	//	*ActionResult_ProcessSignal
+	//	*ActionResult_LogQuery
+	//	*ActionResult_AuthLog
 	Result        isActionResult_Result `protobuf_oneof:"result"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -694,6 +786,24 @@ func (x *ActionResult) GetProcessSignal() *ProcessSignalResult {
 	return nil
 }
 
+func (x *ActionResult) GetLogQuery() *LogQueryResult {
+	if x != nil {
+		if x, ok := x.Result.(*ActionResult_LogQuery); ok {
+			return x.LogQuery
+		}
+	}
+	return nil
+}
+
+func (x *ActionResult) GetAuthLog() *AuthLogResult {
+	if x != nil {
+		if x, ok := x.Result.(*ActionResult_AuthLog); ok {
+			return x.AuthLog
+		}
+	}
+	return nil
+}
+
 type isActionResult_Result interface {
 	isActionResult_Result()
 }
@@ -718,6 +828,14 @@ type ActionResult_ProcessSignal struct {
 	ProcessSignal *ProcessSignalResult `protobuf:"bytes,5,opt,name=process_signal,json=processSignal,proto3,oneof"`
 }
 
+type ActionResult_LogQuery struct {
+	LogQuery *LogQueryResult `protobuf:"bytes,6,opt,name=log_query,json=logQuery,proto3,oneof"`
+}
+
+type ActionResult_AuthLog struct {
+	AuthLog *AuthLogResult `protobuf:"bytes,7,opt,name=auth_log,json=authLog,proto3,oneof"`
+}
+
 func (*ActionResult_SystemInfo) isActionResult_Result() {}
 
 func (*ActionResult_ServiceList) isActionResult_Result() {}
@@ -727,6 +845,10 @@ func (*ActionResult_ServiceControl) isActionResult_Result() {}
 func (*ActionResult_ProcessList) isActionResult_Result() {}
 
 func (*ActionResult_ProcessSignal) isActionResult_Result() {}
+
+func (*ActionResult_LogQuery) isActionResult_Result() {}
+
+func (*ActionResult_AuthLog) isActionResult_Result() {}
 
 type SystemInfoRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1576,6 +1698,435 @@ func (*ProcessSignalResult) Descriptor() ([]byte, []int) {
 	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{17}
 }
 
+type LogQueryRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional systemd unit, e.g. "nginx.service".
+	Unit string `protobuf:"bytes,1,opt,name=unit,proto3" json:"unit,omitempty"`
+	// Only entries newer than this many seconds; 0 means 1 hour. Ignored with after_cursor.
+	SinceSeconds uint32 `protobuf:"varint,2,opt,name=since_seconds,json=sinceSeconds,proto3" json:"since_seconds,omitempty"`
+	// Maximum entries, newest last; 0 means 100. Capped at 500.
+	Limit uint32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Optional case-insensitive substring filter on the message.
+	Grep string `protobuf:"bytes,4,opt,name=grep,proto3" json:"grep,omitempty"`
+	// Only entries at this priority or more severe: 0 emerg ... 7 debug. Unset means all.
+	MaxPriority *uint32 `protobuf:"varint,5,opt,name=max_priority,json=maxPriority,proto3,oneof" json:"max_priority,omitempty"`
+	// Continue after this journal cursor (from a previous result) to follow new entries.
+	AfterCursor   string `protobuf:"bytes,6,opt,name=after_cursor,json=afterCursor,proto3" json:"after_cursor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogQueryRequest) Reset() {
+	*x = LogQueryRequest{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogQueryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogQueryRequest) ProtoMessage() {}
+
+func (x *LogQueryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogQueryRequest.ProtoReflect.Descriptor instead.
+func (*LogQueryRequest) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *LogQueryRequest) GetUnit() string {
+	if x != nil {
+		return x.Unit
+	}
+	return ""
+}
+
+func (x *LogQueryRequest) GetSinceSeconds() uint32 {
+	if x != nil {
+		return x.SinceSeconds
+	}
+	return 0
+}
+
+func (x *LogQueryRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *LogQueryRequest) GetGrep() string {
+	if x != nil {
+		return x.Grep
+	}
+	return ""
+}
+
+func (x *LogQueryRequest) GetMaxPriority() uint32 {
+	if x != nil && x.MaxPriority != nil {
+		return *x.MaxPriority
+	}
+	return 0
+}
+
+func (x *LogQueryRequest) GetAfterCursor() string {
+	if x != nil {
+		return x.AfterCursor
+	}
+	return ""
+}
+
+type LogQueryResult struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Entries []*LogEntry            `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	// Cursor of the last entry; pass it as after_cursor to get newer entries.
+	Cursor        string `protobuf:"bytes,2,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogQueryResult) Reset() {
+	*x = LogQueryResult{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogQueryResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogQueryResult) ProtoMessage() {}
+
+func (x *LogQueryResult) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogQueryResult.ProtoReflect.Descriptor instead.
+func (*LogQueryResult) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *LogQueryResult) GetEntries() []*LogEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
+func (x *LogQueryResult) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
+}
+
+type LogEntry struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Time  *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=time,proto3" json:"time,omitempty"`
+	// syslog priority, 0 (emerg) to 7 (debug).
+	Priority   uint32 `protobuf:"varint,2,opt,name=priority,proto3" json:"priority,omitempty"`
+	Unit       string `protobuf:"bytes,3,opt,name=unit,proto3" json:"unit,omitempty"`
+	Identifier string `protobuf:"bytes,4,opt,name=identifier,proto3" json:"identifier,omitempty"`
+	Pid        int32  `protobuf:"varint,5,opt,name=pid,proto3" json:"pid,omitempty"`
+	// Truncated to 1024 bytes.
+	Message       string `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogEntry) Reset() {
+	*x = LogEntry{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogEntry) ProtoMessage() {}
+
+func (x *LogEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogEntry.ProtoReflect.Descriptor instead.
+func (*LogEntry) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *LogEntry) GetTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Time
+	}
+	return nil
+}
+
+func (x *LogEntry) GetPriority() uint32 {
+	if x != nil {
+		return x.Priority
+	}
+	return 0
+}
+
+func (x *LogEntry) GetUnit() string {
+	if x != nil {
+		return x.Unit
+	}
+	return ""
+}
+
+func (x *LogEntry) GetIdentifier() string {
+	if x != nil {
+		return x.Identifier
+	}
+	return ""
+}
+
+func (x *LogEntry) GetPid() int32 {
+	if x != nil {
+		return x.Pid
+	}
+	return 0
+}
+
+func (x *LogEntry) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type AuthLogRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 0 means 24 hours.
+	SinceSeconds uint32 `protobuf:"varint,1,opt,name=since_seconds,json=sinceSeconds,proto3" json:"since_seconds,omitempty"`
+	// 0 means 100. Capped at 500.
+	Limit         uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuthLogRequest) Reset() {
+	*x = AuthLogRequest{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthLogRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthLogRequest) ProtoMessage() {}
+
+func (x *AuthLogRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthLogRequest.ProtoReflect.Descriptor instead.
+func (*AuthLogRequest) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *AuthLogRequest) GetSinceSeconds() uint32 {
+	if x != nil {
+		return x.SinceSeconds
+	}
+	return 0
+}
+
+func (x *AuthLogRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type AuthLogResult struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Events        []*AuthEvent           `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuthLogResult) Reset() {
+	*x = AuthLogResult{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthLogResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthLogResult) ProtoMessage() {}
+
+func (x *AuthLogResult) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthLogResult.ProtoReflect.Descriptor instead.
+func (*AuthLogResult) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *AuthLogResult) GetEvents() []*AuthEvent {
+	if x != nil {
+		return x.Events
+	}
+	return nil
+}
+
+type AuthEvent struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Time     *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=time,proto3" json:"time,omitempty"`
+	Kind     AuthEventKind          `protobuf:"varint,2,opt,name=kind,proto3,enum=sm.agent.v1.AuthEventKind" json:"kind,omitempty"`
+	User     string                 `protobuf:"bytes,3,opt,name=user,proto3" json:"user,omitempty"`
+	SourceIp string                 `protobuf:"bytes,4,opt,name=source_ip,json=sourceIp,proto3" json:"source_ip,omitempty"`
+	// SSH: "publickey", "password", ...
+	Method string `protobuf:"bytes,5,opt,name=method,proto3" json:"method,omitempty"`
+	// sudo: target user and command.
+	TargetUser    string `protobuf:"bytes,6,opt,name=target_user,json=targetUser,proto3" json:"target_user,omitempty"`
+	Command       string `protobuf:"bytes,7,opt,name=command,proto3" json:"command,omitempty"`
+	Message       string `protobuf:"bytes,8,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuthEvent) Reset() {
+	*x = AuthEvent{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthEvent) ProtoMessage() {}
+
+func (x *AuthEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthEvent.ProtoReflect.Descriptor instead.
+func (*AuthEvent) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *AuthEvent) GetTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Time
+	}
+	return nil
+}
+
+func (x *AuthEvent) GetKind() AuthEventKind {
+	if x != nil {
+		return x.Kind
+	}
+	return AuthEventKind_AUTH_EVENT_KIND_UNSPECIFIED
+}
+
+func (x *AuthEvent) GetUser() string {
+	if x != nil {
+		return x.User
+	}
+	return ""
+}
+
+func (x *AuthEvent) GetSourceIp() string {
+	if x != nil {
+		return x.SourceIp
+	}
+	return ""
+}
+
+func (x *AuthEvent) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+func (x *AuthEvent) GetTargetUser() string {
+	if x != nil {
+		return x.TargetUser
+	}
+	return ""
+}
+
+func (x *AuthEvent) GetCommand() string {
+	if x != nil {
+		return x.Command
+	}
+	return ""
+}
+
+func (x *AuthEvent) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 type ExecuteRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Command       *Command               `protobuf:"bytes,1,opt,name=command,proto3" json:"command,omitempty"`
@@ -1585,7 +2136,7 @@ type ExecuteRequest struct {
 
 func (x *ExecuteRequest) Reset() {
 	*x = ExecuteRequest{}
-	mi := &file_sm_agent_v1_actions_proto_msgTypes[18]
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1597,7 +2148,7 @@ func (x *ExecuteRequest) String() string {
 func (*ExecuteRequest) ProtoMessage() {}
 
 func (x *ExecuteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sm_agent_v1_actions_proto_msgTypes[18]
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1610,7 +2161,7 @@ func (x *ExecuteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecuteRequest.ProtoReflect.Descriptor instead.
 func (*ExecuteRequest) Descriptor() ([]byte, []int) {
-	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{18}
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ExecuteRequest) GetCommand() *Command {
@@ -1629,7 +2180,7 @@ type ExecuteResponse struct {
 
 func (x *ExecuteResponse) Reset() {
 	*x = ExecuteResponse{}
-	mi := &file_sm_agent_v1_actions_proto_msgTypes[19]
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1641,7 +2192,7 @@ func (x *ExecuteResponse) String() string {
 func (*ExecuteResponse) ProtoMessage() {}
 
 func (x *ExecuteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sm_agent_v1_actions_proto_msgTypes[19]
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1654,7 +2205,7 @@ func (x *ExecuteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecuteResponse.ProtoReflect.Descriptor instead.
 func (*ExecuteResponse) Descriptor() ([]byte, []int) {
-	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{19}
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ExecuteResponse) GetResult() *CommandResult {
@@ -1679,27 +2230,31 @@ const file_sm_agent_v1_actions_proto_rawDesc = "" +
 	"\arequest\x18\x06 \x01(\v2\x1a.sm.agent.v1.ActionRequestR\arequest\"C\n" +
 	"\aCommand\x12\x1a\n" +
 	"\benvelope\x18\x01 \x01(\fR\benvelope\x12\x1c\n" +
-	"\tsignature\x18\x02 \x01(\fR\tsignature\"\x83\x03\n" +
+	"\tsignature\x18\x02 \x01(\fR\tsignature\"\xfa\x03\n" +
 	"\rActionRequest\x12A\n" +
 	"\vsystem_info\x18\x01 \x01(\v2\x1e.sm.agent.v1.SystemInfoRequestH\x00R\n" +
 	"systemInfo\x12D\n" +
 	"\fservice_list\x18\x02 \x01(\v2\x1f.sm.agent.v1.ServiceListRequestH\x00R\vserviceList\x12M\n" +
 	"\x0fservice_control\x18\x03 \x01(\v2\".sm.agent.v1.ServiceControlRequestH\x00R\x0eserviceControl\x12D\n" +
 	"\fprocess_list\x18\x04 \x01(\v2\x1f.sm.agent.v1.ProcessListRequestH\x00R\vprocessList\x12J\n" +
-	"\x0eprocess_signal\x18\x05 \x01(\v2!.sm.agent.v1.ProcessSignalRequestH\x00R\rprocessSignalB\b\n" +
+	"\x0eprocess_signal\x18\x05 \x01(\v2!.sm.agent.v1.ProcessSignalRequestH\x00R\rprocessSignal\x12;\n" +
+	"\tlog_query\x18\x06 \x01(\v2\x1c.sm.agent.v1.LogQueryRequestH\x00R\blogQuery\x128\n" +
+	"\bauth_log\x18\a \x01(\v2\x1b.sm.agent.v1.AuthLogRequestH\x00R\aauthLogB\b\n" +
 	"\x06action\"\x9c\x01\n" +
 	"\rCommandResult\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x122\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x1a.sm.agent.v1.CommandStatusR\x06status\x12\x14\n" +
 	"\x05error\x18\x03 \x01(\tR\x05error\x121\n" +
-	"\x06result\x18\x04 \x01(\v2\x19.sm.agent.v1.ActionResultR\x06result\"\xfd\x02\n" +
+	"\x06result\x18\x04 \x01(\v2\x19.sm.agent.v1.ActionResultR\x06result\"\xf2\x03\n" +
 	"\fActionResult\x12@\n" +
 	"\vsystem_info\x18\x01 \x01(\v2\x1d.sm.agent.v1.SystemInfoResultH\x00R\n" +
 	"systemInfo\x12C\n" +
 	"\fservice_list\x18\x02 \x01(\v2\x1e.sm.agent.v1.ServiceListResultH\x00R\vserviceList\x12L\n" +
 	"\x0fservice_control\x18\x03 \x01(\v2!.sm.agent.v1.ServiceControlResultH\x00R\x0eserviceControl\x12C\n" +
 	"\fprocess_list\x18\x04 \x01(\v2\x1e.sm.agent.v1.ProcessListResultH\x00R\vprocessList\x12I\n" +
-	"\x0eprocess_signal\x18\x05 \x01(\v2 .sm.agent.v1.ProcessSignalResultH\x00R\rprocessSignalB\b\n" +
+	"\x0eprocess_signal\x18\x05 \x01(\v2 .sm.agent.v1.ProcessSignalResultH\x00R\rprocessSignal\x12:\n" +
+	"\tlog_query\x18\x06 \x01(\v2\x1b.sm.agent.v1.LogQueryResultH\x00R\blogQuery\x127\n" +
+	"\bauth_log\x18\a \x01(\v2\x1a.sm.agent.v1.AuthLogResultH\x00R\aauthLogB\b\n" +
 	"\x06result\"\x13\n" +
 	"\x11SystemInfoRequest\"\xa7\x03\n" +
 	"\x10SystemInfoResult\x12\x1a\n" +
@@ -1769,7 +2324,42 @@ const file_sm_agent_v1_actions_proto_rawDesc = "" +
 	"\x06signal\x18\x02 \x01(\x0e2\x13.sm.agent.v1.SignalR\x06signal\x12\x1f\n" +
 	"\vstart_ticks\x18\x03 \x01(\x04R\n" +
 	"startTicks\"\x15\n" +
-	"\x13ProcessSignalResult\"@\n" +
+	"\x13ProcessSignalResult\"\xd0\x01\n" +
+	"\x0fLogQueryRequest\x12\x12\n" +
+	"\x04unit\x18\x01 \x01(\tR\x04unit\x12#\n" +
+	"\rsince_seconds\x18\x02 \x01(\rR\fsinceSeconds\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\rR\x05limit\x12\x12\n" +
+	"\x04grep\x18\x04 \x01(\tR\x04grep\x12&\n" +
+	"\fmax_priority\x18\x05 \x01(\rH\x00R\vmaxPriority\x88\x01\x01\x12!\n" +
+	"\fafter_cursor\x18\x06 \x01(\tR\vafterCursorB\x0f\n" +
+	"\r_max_priority\"Y\n" +
+	"\x0eLogQueryResult\x12/\n" +
+	"\aentries\x18\x01 \x03(\v2\x15.sm.agent.v1.LogEntryR\aentries\x12\x16\n" +
+	"\x06cursor\x18\x02 \x01(\tR\x06cursor\"\xb6\x01\n" +
+	"\bLogEntry\x12.\n" +
+	"\x04time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x04time\x12\x1a\n" +
+	"\bpriority\x18\x02 \x01(\rR\bpriority\x12\x12\n" +
+	"\x04unit\x18\x03 \x01(\tR\x04unit\x12\x1e\n" +
+	"\n" +
+	"identifier\x18\x04 \x01(\tR\n" +
+	"identifier\x12\x10\n" +
+	"\x03pid\x18\x05 \x01(\x05R\x03pid\x12\x18\n" +
+	"\amessage\x18\x06 \x01(\tR\amessage\"K\n" +
+	"\x0eAuthLogRequest\x12#\n" +
+	"\rsince_seconds\x18\x01 \x01(\rR\fsinceSeconds\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\rR\x05limit\"?\n" +
+	"\rAuthLogResult\x12.\n" +
+	"\x06events\x18\x01 \x03(\v2\x16.sm.agent.v1.AuthEventR\x06events\"\x89\x02\n" +
+	"\tAuthEvent\x12.\n" +
+	"\x04time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x04time\x12.\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x1a.sm.agent.v1.AuthEventKindR\x04kind\x12\x12\n" +
+	"\x04user\x18\x03 \x01(\tR\x04user\x12\x1b\n" +
+	"\tsource_ip\x18\x04 \x01(\tR\bsourceIp\x12\x16\n" +
+	"\x06method\x18\x05 \x01(\tR\x06method\x12\x1f\n" +
+	"\vtarget_user\x18\x06 \x01(\tR\n" +
+	"targetUser\x12\x18\n" +
+	"\acommand\x18\a \x01(\tR\acommand\x12\x18\n" +
+	"\amessage\x18\b \x01(\tR\amessage\"@\n" +
 	"\x0eExecuteRequest\x12.\n" +
 	"\acommand\x18\x01 \x01(\v2\x14.sm.agent.v1.CommandR\acommand\"E\n" +
 	"\x0fExecuteResponse\x122\n" +
@@ -1802,7 +2392,14 @@ const file_sm_agent_v1_actions_proto_rawDesc = "" +
 	"SIGNAL_INT\x10\x04\x12\x0f\n" +
 	"\vSIGNAL_QUIT\x10\x05\x12\x0f\n" +
 	"\vSIGNAL_USR1\x10\x06\x12\x0f\n" +
-	"\vSIGNAL_USR2\x10\a2Y\n" +
+	"\vSIGNAL_USR2\x10\a*\xd3\x01\n" +
+	"\rAuthEventKind\x12\x1f\n" +
+	"\x1bAUTH_EVENT_KIND_UNSPECIFIED\x10\x00\x12 \n" +
+	"\x1cAUTH_EVENT_KIND_SSH_ACCEPTED\x10\x01\x12\x1e\n" +
+	"\x1aAUTH_EVENT_KIND_SSH_FAILED\x10\x02\x12$\n" +
+	" AUTH_EVENT_KIND_SSH_INVALID_USER\x10\x03\x12\x18\n" +
+	"\x14AUTH_EVENT_KIND_SUDO\x10\x04\x12\x1f\n" +
+	"\x1bAUTH_EVENT_KIND_SUDO_FAILED\x10\x052Y\n" +
 	"\x11PrivilegedService\x12D\n" +
 	"\aExecute\x12\x1b.sm.agent.v1.ExecuteRequest\x1a\x1c.sm.agent.v1.ExecuteResponseB\xb1\x01\n" +
 	"\x0fcom.sm.agent.v1B\fActionsProtoP\x01ZBgithub.com/monirujjaman-dev/server-manager/gen/sm/agent/v1;agentv1\xa2\x02\x03SAX\xaa\x02\vSm.Agent.V1\xca\x02\vSm\\Agent\\V1\xe2\x02\x17Sm\\Agent\\V1\\GPBMetadata\xea\x02\rSm::Agent::V1b\x06proto3"
@@ -1819,67 +2416,83 @@ func file_sm_agent_v1_actions_proto_rawDescGZIP() []byte {
 	return file_sm_agent_v1_actions_proto_rawDescData
 }
 
-var file_sm_agent_v1_actions_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_sm_agent_v1_actions_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_sm_agent_v1_actions_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
+var file_sm_agent_v1_actions_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_sm_agent_v1_actions_proto_goTypes = []any{
 	(CommandStatus)(0),            // 0: sm.agent.v1.CommandStatus
 	(ServiceOperation)(0),         // 1: sm.agent.v1.ServiceOperation
 	(ProcessSort)(0),              // 2: sm.agent.v1.ProcessSort
 	(Signal)(0),                   // 3: sm.agent.v1.Signal
-	(*CommandEnvelope)(nil),       // 4: sm.agent.v1.CommandEnvelope
-	(*Command)(nil),               // 5: sm.agent.v1.Command
-	(*ActionRequest)(nil),         // 6: sm.agent.v1.ActionRequest
-	(*CommandResult)(nil),         // 7: sm.agent.v1.CommandResult
-	(*ActionResult)(nil),          // 8: sm.agent.v1.ActionResult
-	(*SystemInfoRequest)(nil),     // 9: sm.agent.v1.SystemInfoRequest
-	(*SystemInfoResult)(nil),      // 10: sm.agent.v1.SystemInfoResult
-	(*Filesystem)(nil),            // 11: sm.agent.v1.Filesystem
-	(*ServiceListRequest)(nil),    // 12: sm.agent.v1.ServiceListRequest
-	(*ServiceListResult)(nil),     // 13: sm.agent.v1.ServiceListResult
-	(*ServiceUnit)(nil),           // 14: sm.agent.v1.ServiceUnit
-	(*ServiceControlRequest)(nil), // 15: sm.agent.v1.ServiceControlRequest
-	(*ServiceControlResult)(nil),  // 16: sm.agent.v1.ServiceControlResult
-	(*ProcessListRequest)(nil),    // 17: sm.agent.v1.ProcessListRequest
-	(*ProcessListResult)(nil),     // 18: sm.agent.v1.ProcessListResult
-	(*Process)(nil),               // 19: sm.agent.v1.Process
-	(*ProcessSignalRequest)(nil),  // 20: sm.agent.v1.ProcessSignalRequest
-	(*ProcessSignalResult)(nil),   // 21: sm.agent.v1.ProcessSignalResult
-	(*ExecuteRequest)(nil),        // 22: sm.agent.v1.ExecuteRequest
-	(*ExecuteResponse)(nil),       // 23: sm.agent.v1.ExecuteResponse
-	(*timestamppb.Timestamp)(nil), // 24: google.protobuf.Timestamp
+	(AuthEventKind)(0),            // 4: sm.agent.v1.AuthEventKind
+	(*CommandEnvelope)(nil),       // 5: sm.agent.v1.CommandEnvelope
+	(*Command)(nil),               // 6: sm.agent.v1.Command
+	(*ActionRequest)(nil),         // 7: sm.agent.v1.ActionRequest
+	(*CommandResult)(nil),         // 8: sm.agent.v1.CommandResult
+	(*ActionResult)(nil),          // 9: sm.agent.v1.ActionResult
+	(*SystemInfoRequest)(nil),     // 10: sm.agent.v1.SystemInfoRequest
+	(*SystemInfoResult)(nil),      // 11: sm.agent.v1.SystemInfoResult
+	(*Filesystem)(nil),            // 12: sm.agent.v1.Filesystem
+	(*ServiceListRequest)(nil),    // 13: sm.agent.v1.ServiceListRequest
+	(*ServiceListResult)(nil),     // 14: sm.agent.v1.ServiceListResult
+	(*ServiceUnit)(nil),           // 15: sm.agent.v1.ServiceUnit
+	(*ServiceControlRequest)(nil), // 16: sm.agent.v1.ServiceControlRequest
+	(*ServiceControlResult)(nil),  // 17: sm.agent.v1.ServiceControlResult
+	(*ProcessListRequest)(nil),    // 18: sm.agent.v1.ProcessListRequest
+	(*ProcessListResult)(nil),     // 19: sm.agent.v1.ProcessListResult
+	(*Process)(nil),               // 20: sm.agent.v1.Process
+	(*ProcessSignalRequest)(nil),  // 21: sm.agent.v1.ProcessSignalRequest
+	(*ProcessSignalResult)(nil),   // 22: sm.agent.v1.ProcessSignalResult
+	(*LogQueryRequest)(nil),       // 23: sm.agent.v1.LogQueryRequest
+	(*LogQueryResult)(nil),        // 24: sm.agent.v1.LogQueryResult
+	(*LogEntry)(nil),              // 25: sm.agent.v1.LogEntry
+	(*AuthLogRequest)(nil),        // 26: sm.agent.v1.AuthLogRequest
+	(*AuthLogResult)(nil),         // 27: sm.agent.v1.AuthLogResult
+	(*AuthEvent)(nil),             // 28: sm.agent.v1.AuthEvent
+	(*ExecuteRequest)(nil),        // 29: sm.agent.v1.ExecuteRequest
+	(*ExecuteResponse)(nil),       // 30: sm.agent.v1.ExecuteResponse
+	(*timestamppb.Timestamp)(nil), // 31: google.protobuf.Timestamp
 }
 var file_sm_agent_v1_actions_proto_depIdxs = []int32{
-	24, // 0: sm.agent.v1.CommandEnvelope.issued_at:type_name -> google.protobuf.Timestamp
-	24, // 1: sm.agent.v1.CommandEnvelope.expires_at:type_name -> google.protobuf.Timestamp
-	6,  // 2: sm.agent.v1.CommandEnvelope.request:type_name -> sm.agent.v1.ActionRequest
-	9,  // 3: sm.agent.v1.ActionRequest.system_info:type_name -> sm.agent.v1.SystemInfoRequest
-	12, // 4: sm.agent.v1.ActionRequest.service_list:type_name -> sm.agent.v1.ServiceListRequest
-	15, // 5: sm.agent.v1.ActionRequest.service_control:type_name -> sm.agent.v1.ServiceControlRequest
-	17, // 6: sm.agent.v1.ActionRequest.process_list:type_name -> sm.agent.v1.ProcessListRequest
-	20, // 7: sm.agent.v1.ActionRequest.process_signal:type_name -> sm.agent.v1.ProcessSignalRequest
-	0,  // 8: sm.agent.v1.CommandResult.status:type_name -> sm.agent.v1.CommandStatus
-	8,  // 9: sm.agent.v1.CommandResult.result:type_name -> sm.agent.v1.ActionResult
-	10, // 10: sm.agent.v1.ActionResult.system_info:type_name -> sm.agent.v1.SystemInfoResult
-	13, // 11: sm.agent.v1.ActionResult.service_list:type_name -> sm.agent.v1.ServiceListResult
-	16, // 12: sm.agent.v1.ActionResult.service_control:type_name -> sm.agent.v1.ServiceControlResult
-	18, // 13: sm.agent.v1.ActionResult.process_list:type_name -> sm.agent.v1.ProcessListResult
-	21, // 14: sm.agent.v1.ActionResult.process_signal:type_name -> sm.agent.v1.ProcessSignalResult
-	11, // 15: sm.agent.v1.SystemInfoResult.filesystems:type_name -> sm.agent.v1.Filesystem
-	14, // 16: sm.agent.v1.ServiceListResult.units:type_name -> sm.agent.v1.ServiceUnit
-	1,  // 17: sm.agent.v1.ServiceControlRequest.operation:type_name -> sm.agent.v1.ServiceOperation
-	14, // 18: sm.agent.v1.ServiceControlResult.unit:type_name -> sm.agent.v1.ServiceUnit
-	2,  // 19: sm.agent.v1.ProcessListRequest.sort:type_name -> sm.agent.v1.ProcessSort
-	19, // 20: sm.agent.v1.ProcessListResult.processes:type_name -> sm.agent.v1.Process
-	3,  // 21: sm.agent.v1.ProcessSignalRequest.signal:type_name -> sm.agent.v1.Signal
-	5,  // 22: sm.agent.v1.ExecuteRequest.command:type_name -> sm.agent.v1.Command
-	7,  // 23: sm.agent.v1.ExecuteResponse.result:type_name -> sm.agent.v1.CommandResult
-	22, // 24: sm.agent.v1.PrivilegedService.Execute:input_type -> sm.agent.v1.ExecuteRequest
-	23, // 25: sm.agent.v1.PrivilegedService.Execute:output_type -> sm.agent.v1.ExecuteResponse
-	25, // [25:26] is the sub-list for method output_type
-	24, // [24:25] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	31, // 0: sm.agent.v1.CommandEnvelope.issued_at:type_name -> google.protobuf.Timestamp
+	31, // 1: sm.agent.v1.CommandEnvelope.expires_at:type_name -> google.protobuf.Timestamp
+	7,  // 2: sm.agent.v1.CommandEnvelope.request:type_name -> sm.agent.v1.ActionRequest
+	10, // 3: sm.agent.v1.ActionRequest.system_info:type_name -> sm.agent.v1.SystemInfoRequest
+	13, // 4: sm.agent.v1.ActionRequest.service_list:type_name -> sm.agent.v1.ServiceListRequest
+	16, // 5: sm.agent.v1.ActionRequest.service_control:type_name -> sm.agent.v1.ServiceControlRequest
+	18, // 6: sm.agent.v1.ActionRequest.process_list:type_name -> sm.agent.v1.ProcessListRequest
+	21, // 7: sm.agent.v1.ActionRequest.process_signal:type_name -> sm.agent.v1.ProcessSignalRequest
+	23, // 8: sm.agent.v1.ActionRequest.log_query:type_name -> sm.agent.v1.LogQueryRequest
+	26, // 9: sm.agent.v1.ActionRequest.auth_log:type_name -> sm.agent.v1.AuthLogRequest
+	0,  // 10: sm.agent.v1.CommandResult.status:type_name -> sm.agent.v1.CommandStatus
+	9,  // 11: sm.agent.v1.CommandResult.result:type_name -> sm.agent.v1.ActionResult
+	11, // 12: sm.agent.v1.ActionResult.system_info:type_name -> sm.agent.v1.SystemInfoResult
+	14, // 13: sm.agent.v1.ActionResult.service_list:type_name -> sm.agent.v1.ServiceListResult
+	17, // 14: sm.agent.v1.ActionResult.service_control:type_name -> sm.agent.v1.ServiceControlResult
+	19, // 15: sm.agent.v1.ActionResult.process_list:type_name -> sm.agent.v1.ProcessListResult
+	22, // 16: sm.agent.v1.ActionResult.process_signal:type_name -> sm.agent.v1.ProcessSignalResult
+	24, // 17: sm.agent.v1.ActionResult.log_query:type_name -> sm.agent.v1.LogQueryResult
+	27, // 18: sm.agent.v1.ActionResult.auth_log:type_name -> sm.agent.v1.AuthLogResult
+	12, // 19: sm.agent.v1.SystemInfoResult.filesystems:type_name -> sm.agent.v1.Filesystem
+	15, // 20: sm.agent.v1.ServiceListResult.units:type_name -> sm.agent.v1.ServiceUnit
+	1,  // 21: sm.agent.v1.ServiceControlRequest.operation:type_name -> sm.agent.v1.ServiceOperation
+	15, // 22: sm.agent.v1.ServiceControlResult.unit:type_name -> sm.agent.v1.ServiceUnit
+	2,  // 23: sm.agent.v1.ProcessListRequest.sort:type_name -> sm.agent.v1.ProcessSort
+	20, // 24: sm.agent.v1.ProcessListResult.processes:type_name -> sm.agent.v1.Process
+	3,  // 25: sm.agent.v1.ProcessSignalRequest.signal:type_name -> sm.agent.v1.Signal
+	25, // 26: sm.agent.v1.LogQueryResult.entries:type_name -> sm.agent.v1.LogEntry
+	31, // 27: sm.agent.v1.LogEntry.time:type_name -> google.protobuf.Timestamp
+	28, // 28: sm.agent.v1.AuthLogResult.events:type_name -> sm.agent.v1.AuthEvent
+	31, // 29: sm.agent.v1.AuthEvent.time:type_name -> google.protobuf.Timestamp
+	4,  // 30: sm.agent.v1.AuthEvent.kind:type_name -> sm.agent.v1.AuthEventKind
+	6,  // 31: sm.agent.v1.ExecuteRequest.command:type_name -> sm.agent.v1.Command
+	8,  // 32: sm.agent.v1.ExecuteResponse.result:type_name -> sm.agent.v1.CommandResult
+	29, // 33: sm.agent.v1.PrivilegedService.Execute:input_type -> sm.agent.v1.ExecuteRequest
+	30, // 34: sm.agent.v1.PrivilegedService.Execute:output_type -> sm.agent.v1.ExecuteResponse
+	34, // [34:35] is the sub-list for method output_type
+	33, // [33:34] is the sub-list for method input_type
+	33, // [33:33] is the sub-list for extension type_name
+	33, // [33:33] is the sub-list for extension extendee
+	0,  // [0:33] is the sub-list for field type_name
 }
 
 func init() { file_sm_agent_v1_actions_proto_init() }
@@ -1893,6 +2506,8 @@ func file_sm_agent_v1_actions_proto_init() {
 		(*ActionRequest_ServiceControl)(nil),
 		(*ActionRequest_ProcessList)(nil),
 		(*ActionRequest_ProcessSignal)(nil),
+		(*ActionRequest_LogQuery)(nil),
+		(*ActionRequest_AuthLog)(nil),
 	}
 	file_sm_agent_v1_actions_proto_msgTypes[4].OneofWrappers = []any{
 		(*ActionResult_SystemInfo)(nil),
@@ -1900,14 +2515,17 @@ func file_sm_agent_v1_actions_proto_init() {
 		(*ActionResult_ServiceControl)(nil),
 		(*ActionResult_ProcessList)(nil),
 		(*ActionResult_ProcessSignal)(nil),
+		(*ActionResult_LogQuery)(nil),
+		(*ActionResult_AuthLog)(nil),
 	}
+	file_sm_agent_v1_actions_proto_msgTypes[18].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_sm_agent_v1_actions_proto_rawDesc), len(file_sm_agent_v1_actions_proto_rawDesc)),
-			NumEnums:      4,
-			NumMessages:   20,
+			NumEnums:      5,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

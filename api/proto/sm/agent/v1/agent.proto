@@ -5,6 +5,7 @@ package sm.agent.v1;
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "sm/agent/v1/actions.proto";
+import "sm/agent/v1/metrics.proto";
 
 // AgentService is served by the control plane on the agent gateway listener.
 // Every call requires a valid mTLS client certificate issued by the internal CA;
@@ -37,6 +38,7 @@ message ConnectRequest {
     Hello hello = 1;
     Heartbeat heartbeat = 2;
     CommandResult command_result = 3;
+    MetricsBatch metrics = 4;
   }
 }
 

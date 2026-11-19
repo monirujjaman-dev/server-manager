@@ -58,6 +58,8 @@ type Hooks interface {
 	OnSessionStart(ctx context.Context, id uuid.UUID)
 	// OnCommandResult records a result reported by the agent.
 	OnCommandResult(ctx context.Context, id uuid.UUID, res *agentv1.CommandResult) error
+	// OnMetrics records a metrics batch.
+	OnMetrics(ctx context.Context, id uuid.UUID, batch *agentv1.MetricsBatch) error
 }
 
 // NopHooks does nothing.
@@ -70,6 +72,7 @@ func (NopHooks) OnSessionStart(context.Context, uuid.UUID)                {}
 func (NopHooks) OnCommandResult(context.Context, uuid.UUID, *agentv1.CommandResult) error {
 	return nil
 }
+func (NopHooks) OnMetrics(context.Context, uuid.UUID, *agentv1.MetricsBatch) error { return nil }
 
 // Options configures a Gateway.
 type Options struct {
@@ -303,6 +306,10 @@ func (g *Gateway) Connect(ctx context.Context, stream *connect.BidiStream[agentv
 			case *agentv1.ConnectRequest_CommandResult:
 				if err := g.hooks.OnCommandResult(ctx, id, p.CommandResult); err != nil {
 					log.Warn("command result not recorded", "job_id", p.CommandResult.GetId(), "err", err)
+				}
+			case *agentv1.ConnectRequest_Metrics:
+				if err := g.hooks.OnMetrics(ctx, id, p.Metrics); err != nil {
+					log.Warn("metrics not recorded", "err", err)
 				}
 			case *agentv1.ConnectRequest_Hello:
 				return connect.NewError(connect.CodeInvalidArgument, errors.New("duplicate hello"))

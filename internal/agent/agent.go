@@ -56,6 +56,16 @@ type Config struct {
 	PrivdSocket string `yaml:"privd_socket" env:"PRIVD_SOCKET"`
 	// MaxConcurrentCommands bounds parallel command execution (default 4).
 	MaxConcurrentCommands int `yaml:"max_concurrent_commands" env:"MAX_CONCURRENT_COMMANDS"`
+
+	// MetricsInterval is how often metrics are collected (default 15s; 0 disables).
+	MetricsInterval time.Duration `yaml:"metrics_interval" env:"METRICS_INTERVAL"`
+	// MetricsBuffer is how many batches are kept while disconnected (default 480, two
+	// hours at 15 s).
+	MetricsBuffer int `yaml:"metrics_buffer" env:"METRICS_BUFFER"`
+
+	// JournalctlPath is the journalctl binary (default "journalctl" from $PATH). The
+	// agent user needs to be in the systemd-journal group to read system logs.
+	JournalctlPath string `yaml:"journalctl_path" env:"JOURNALCTL_PATH"`
 }
 
 // DefaultConfig returns production defaults.
@@ -74,6 +84,10 @@ func DefaultConfig() Config {
 		CommandKeyFile:        "/etc/sm-agent/command.pub",
 		PrivdSocket:           "/run/sm-agent/privd.sock",
 		MaxConcurrentCommands: 4,
+
+		MetricsInterval: 15 * time.Second,
+		MetricsBuffer:   480,
+		JournalctlPath:  "journalctl",
 	}
 }
 
@@ -102,6 +116,12 @@ func (c Config) Validate() error {
 	}
 	if c.RenewBefore <= 0 || c.RenewBefore >= 1 {
 		errs = append(errs, errors.New("renew_before must be between 0 and 1"))
+	}
+	if c.MetricsInterval != 0 && c.MetricsInterval < time.Second {
+		errs = append(errs, errors.New("metrics_interval must be 0 (off) or at least 1s"))
+	}
+	if c.MetricsBuffer < 1 || c.MetricsBuffer > 100000 {
+		errs = append(errs, errors.New("metrics_buffer must be between 1 and 100000"))
 	}
 	if c.MaxConcurrentCommands < 1 || c.MaxConcurrentCommands > 64 {
 		errs = append(errs, errors.New("max_concurrent_commands must be between 1 and 64"))
@@ -132,11 +152,13 @@ type Agent struct {
 
 	host    modules.Host
 	systemd modules.Systemd
+	journal modules.Journal
 	privd   *privd.Client
 	sem     chan struct{}
 	// results outlives individual streams so results are delivered after a reconnect.
 	results chan *agentv1.CommandResult
 	runCtx  context.Context
+	metrics *metricsBuffer
 
 	mu          sync.RWMutex
 	status      Status
@@ -203,9 +225,11 @@ func New(cfg Config, log *slog.Logger, opts ...Option) (*Agent, error) {
 		renewed:   make(chan struct{}, 1),
 		host:      modules.DefaultHost(),
 		systemd:   modules.DBusSystemd{},
+		journal:   modules.Journal{Path: cfg.JournalctlPath},
 		privd:     privd.NewClient(cfg.PrivdSocket),
 		sem:       make(chan struct{}, cfg.MaxConcurrentCommands),
 		results:   make(chan *agentv1.CommandResult, 64),
+		metrics:   newMetricsBuffer(cfg.MetricsBuffer),
 	}
 	for _, o := range opts {
 		o(a)
@@ -246,6 +270,9 @@ func (a *Agent) setStatus(fn func(*Status)) {
 func (a *Agent) Run(ctx context.Context) error {
 	a.runCtx = ctx
 	go a.renewLoop(ctx)
+	if a.cfg.MetricsInterval > 0 {
+		go a.metricsLoop(ctx)
+	}
 	attempt := 0
 	for {
 		welcomed, err := a.session(ctx)
@@ -329,6 +356,10 @@ func (a *Agent) session(ctx context.Context) (welcomed bool, err error) {
 	a.updateVerifier(serverID, welcome.GetCommandPublicKey())
 	a.setStatus(func(s *Status) { s.Connected, s.ServerID = true, serverID })
 	a.log.Info("connected to control plane", "server_id", serverID.String(), "heartbeat_interval", interval.String())
+	// Deliver metrics buffered while disconnected right away.
+	if err := a.sendMetrics(stream.Send); err != nil {
+		return true, fmt.Errorf("send buffered metrics: %w", err)
+	}
 
 	recvErr := make(chan error, 1)
 	go func() {
@@ -356,6 +387,10 @@ func (a *Agent) session(ctx context.Context) (welcomed bool, err error) {
 			return true, context.Cause(ctx)
 		case <-a.renewed:
 			return true, errRenewed
+		case <-a.metrics.ready:
+			if err := a.sendMetrics(stream.Send); err != nil {
+				return true, fmt.Errorf("send metrics: %w", err)
+			}
 		case res := <-a.results:
 			if err := stream.Send(&agentv1.ConnectRequest{Payload: &agentv1.ConnectRequest_CommandResult{CommandResult: res}}); err != nil {
 				select {

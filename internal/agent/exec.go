@@ -135,6 +135,18 @@ func (a *Agent) runLocal(ctx context.Context, req *agentv1.ActionRequest) (*agen
 			return nil, err
 		}
 		return &agentv1.ActionResult{Result: &agentv1.ActionResult_ProcessList{ProcessList: list}}, nil
+	case *agentv1.ActionRequest_LogQuery:
+		res, err := a.journal.Query(ctx, r.LogQuery)
+		if err != nil {
+			return nil, err
+		}
+		return &agentv1.ActionResult{Result: &agentv1.ActionResult_LogQuery{LogQuery: res}}, nil
+	case *agentv1.ActionRequest_AuthLog:
+		res, err := a.journal.AuthLog(ctx, r.AuthLog)
+		if err != nil {
+			return nil, err
+		}
+		return &agentv1.ActionResult{Result: &agentv1.ActionResult_AuthLog{AuthLog: res}}, nil
 	default:
 		return nil, fmt.Errorf("unsupported action %T", r)
 	}

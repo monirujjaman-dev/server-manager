@@ -37,6 +37,12 @@ type controlPlane struct {
 // startControlPlane creates a PKI and a fresh database and serves on loopback.
 func startControlPlane(t *testing.T, opts ...server.Option) *controlPlane {
 	t.Helper()
+	return startControlPlaneWith(t, nil, opts...)
+}
+
+// startControlPlaneWith lets a test adjust the configuration before start.
+func startControlPlaneWith(t *testing.T, mutate func(*server.Config), opts ...server.Option) *controlPlane {
+	t.Helper()
 	dbURL := storetest.NewDatabase(t)
 	pkiDir := filepath.Join(t.TempDir(), "pki")
 	ca, err := pki.CreateCA("Test")
@@ -61,6 +67,9 @@ func startControlPlane(t *testing.T, opts ...server.Option) *controlPlane {
 	cfg.DatabaseURL = dbURL
 	cfg.HeartbeatInterval = time.Second
 	cfg.PublicAgentURL = "https://" + agentLn.Addr().String()
+	if mutate != nil {
+		mutate(&cfg)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	srv, err := server.New(ctx, cfg, slog.New(slog.DiscardHandler), opts...)
