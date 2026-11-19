@@ -1,0 +1,9 @@
+# Development configuration. Every key can be overridden with SM_<KEY>, e.g. SM_API_LISTEN.
+agent_listen: 127.0.0.1:8443
+api_listen: 127.0.0.1:8444
+pki_dir: .dev/pki
+database_url: postgres://sm:sm-dev-only@127.0.0.1:5432/sm?sslmode=disable
+heartbeat_interval: 5s
+log:
+  level: debug
+  format: text

@@ -1,6 +1,6 @@
 # Server Manager — Architecture
 
-Status: **Draft v0.1** · Owner: project maintainer · Last updated: 2026-11-19
+Status: **v0.2** (Phase 0 implemented) · Owner: project maintainer · Last updated: 2026-11-19
 
 A self-hosted, console-first platform for managing a fleet of Linux cloud servers
 from a single point: monitoring, Docker, databases, services, processes, firewall,
@@ -336,34 +336,39 @@ Migrations: `goose`. Queries: `sqlc` (type-safe generated Go, no ORM).
 
 ```
 server-manager/
-├── api/proto/sm/v1/          # protobuf: agent stream, operator API, per-module messages
+├── api/proto/sm/             # protobuf sources (buf module)
+│   ├── agent/v1/             #   agent ↔ control-plane stream
+│   └── operator/v1/          #   operator API (CLI, web UI)
+├── gen/                      # generated Go code from api/proto (committed, checked in CI)
 ├── cmd/
 │   ├── sm-server/            # control plane
-│   ├── sm-agent/             # agent + `sm-agent privd` subcommand
+│   ├── sm-agent/             # agent + `sm-agent privd` subcommand (phase 1)
 │   └── smctl/                # CLI + TUI
 ├── internal/
+│   ├── pki/                  # internal CA, CSR signing, agent identity, revocation (shared)
 │   ├── agent/                # connection, buffering, module registry
 │   │   └── modules/          # system, services, docker, firewall, …
 │   ├── privd/                # privileged helper server + action handlers
 │   ├── server/
 │   │   ├── api/              # operator API handlers
-│   │   ├── gateway/          # agent stream gateway
+│   │   ├── gateway/          # agent stream gateway + connected-agent registry
 │   │   ├── auth/             # OIDC, WebAuthn, TOTP, sessions, API tokens
 │   │   ├── rbac/
 │   │   ├── audit/
 │   │   ├── jobs/
-│   │   ├── pki/              # internal CA, enrollment, signing
 │   │   ├── alerts/
-│   │   └── store/            # sqlc queries + migrations
+│   │   └── store/            # goose migrations, sqlc queries, generated db package
 │   ├── ctl/                  # smctl commands and TUI views
-│   └── pkg/                  # shared helpers (validation, logging, version)
+│   └── pkg/                  # shared helpers (config, logging, version)
+├── tools/                    # separate Go module pinning buf, sqlc, protoc plugins, govulncheck
 ├── deploy/
 │   ├── systemd/              # unit files for agent, privd, server
-│   ├── compose/              # docker compose for control plane + PG + VM
+│   ├── compose/              # docker compose for PostgreSQL + VictoriaMetrics
+│   ├── dev/                  # development configuration files
 │   └── install/              # agent install script
-├── docs/                     # architecture, plan, ADRs, runbooks
+├── docs/                     # architecture, plan, ADRs, development guide, runbooks
 ├── test/e2e/                 # VM-based end-to-end tests
-├── buf.yaml / buf.gen.yaml
+├── buf.yaml / buf.gen.yaml / sqlc.yaml
 ├── .goreleaser.yaml
 └── Makefile
 ```
@@ -424,7 +429,7 @@ command routing through PostgreSQL `LISTEN/NOTIFY`.
 
 ## 12. Architecture decisions (summary)
 
-Full ADRs will live in `docs/adr/`.
+Full ADRs: [`docs/adr/`](adr/README.md).
 
 | ADR | Decision | Main alternative rejected | Why |
 |-----|----------|---------------------------|-----|
