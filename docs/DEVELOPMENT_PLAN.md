@@ -39,22 +39,31 @@ gantt
 
 ## 2. Phase details
 
-### Phase 0 — Foundations (2 weeks)
+### Phase 0 — Foundations (2 weeks) — ✅ done
 
 **Goal:** everything needed to build features quickly and safely.
 
-| # | Task | Done when |
-|---|------|-----------|
-| 0.1 | Go module, repo layout from the architecture doc, `Makefile` | `make build` produces `sm-server`, `sm-agent`, `smctl` |
-| 0.2 | `buf` setup, first protos (`agent/v1` stream, `operator/v1` health) | `buf lint` and `buf breaking` run in CI |
-| 0.3 | CI (GitHub Actions): build, `go test -race`, `golangci-lint`, `gosec`, `govulncheck` | Green pipeline on every PR |
-| 0.4 | Dev environment: `docker compose` with PostgreSQL + VictoriaMetrics, 2–3 test VMs (Multipass/Incus) | `make dev-up` starts everything |
-| 0.5 | Store layer: `goose` migrations, `sqlc` config, base tables (servers, users, audit_events) | Migrations apply and roll back cleanly |
-| 0.6 | Internal CA package: create root/intermediate, sign CSR, issue server cert | Unit tests for issuance, expiry, revocation |
-| 0.7 | Config loading (file + env), `slog` logging, version info | `--version` and `--config` work in all binaries |
-| 0.8 | ADRs 001–008 written in `docs/adr/` | Reviewed and merged |
+| # | Task | Done when | Status |
+|---|------|-----------|--------|
+| 0.1 | Go module, repo layout from the architecture doc, `Makefile` | `make build` produces `sm-server`, `sm-agent`, `smctl` | ✅ |
+| 0.2 | `buf` setup, first protos (`agent/v1` stream, `operator/v1` health) | `buf lint` and `buf breaking` run in CI | ✅ |
+| 0.3 | CI (GitHub Actions): build, `go test -race`, `golangci-lint`, `gosec`, `govulncheck` | Green pipeline on every PR | ✅ workflow written; first run happens on the PR |
+| 0.4 | Dev environment: `docker compose` with PostgreSQL + VictoriaMetrics, 2–3 test VMs (Multipass/Incus) | `make dev-up` starts everything | ✅ compose; VM setup documented in [DEVELOPMENT.md](DEVELOPMENT.md) |
+| 0.5 | Store layer: `goose` migrations, `sqlc` config, base tables (servers, users, audit_events) | Migrations apply and roll back cleanly | ✅ plus DB-enforced append-only audit table |
+| 0.6 | Internal CA package: create root/intermediate, sign CSR, issue server cert | Unit tests for issuance, expiry, revocation | ✅ |
+| 0.7 | Config loading (file + env), `slog` logging, version info | `--version` and `--config` work in all binaries | ✅ |
+| 0.8 | ADRs 001–008 written in `docs/adr/` | Reviewed and merged | ✅ written, review pending |
 
 **Exit criteria:** CI green; a hello-world mTLS stream between a test agent and the server works.
+
+**Result:** `internal/server/server_test.go` runs a real control plane and agent over loopback
+mTLS (hello → welcome → acknowledged heartbeats) and checks that clients without a
+certificate and revoked agents are rejected. Measured agent footprint while connected:
+13.5 MB RSS, ~0 % CPU.
+
+**Carried into Phase 1:** revocation is in memory only (task 1.1 moves it to the
+database); agents are enrolled manually with `sm-agent keygen` + `sm-server pki sign-agent`
+until token enrollment (task 1.1) exists.
 
 ---
 

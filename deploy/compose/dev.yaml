@@ -1,0 +1,38 @@
+# Development services only. Credentials here are for local use and must never be reused.
+name: server-manager-dev
+
+services:
+  postgres:
+    image: postgres:17.11-alpine
+    environment:
+      POSTGRES_USER: sm
+      POSTGRES_PASSWORD: sm-dev-only
+      POSTGRES_DB: sm
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sm -d sm"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:v1.148.9
+    command:
+      - -retentionPeriod=30d
+      - -httpListenAddr=:8428
+    ports:
+      - "127.0.0.1:8428:8428"
+    volumes:
+      - vmdata:/victoria-metrics-data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8428/health"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pgdata:
+  vmdata:

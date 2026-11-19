@@ -1,0 +1,42 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - errorlint
+    - gosec
+    - misspell
+    - noctx
+    - nilerr
+    - revive
+    - unconvert
+  settings:
+    revive:
+      rules:
+        - name: exported
+          disabled: true # doc comments are reviewed, not enforced per symbol
+  exclusions:
+    generated: strict
+    paths:
+      - gen/
+      - internal/server/store/db/
+    rules:
+      - path: _test\.go
+        linters: [gosec, noctx]
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/monirujjaman-dev/server-manager
+  exclusions:
+    paths:
+      - gen/
+      - internal/server/store/db/

@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package sm.agent.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+// AgentService is served by the control plane on the agent gateway listener.
+// Every call requires a valid mTLS client certificate issued by the internal CA;
+// the agent's identity is taken from that certificate, never from message fields.
+service AgentService {
+  // Connect opens the long-lived bidirectional stream between one agent and the
+  // control plane. The agent always dials out; the first message it sends must
+  // be a Hello.
+  rpc Connect(stream ConnectRequest) returns (stream ConnectResponse);
+}
+
+// ConnectRequest is a message sent from the agent to the control plane.
+message ConnectRequest {
+  oneof payload {
+    Hello hello = 1;
+    Heartbeat heartbeat = 2;
+  }
+}
+
+// ConnectResponse is a message sent from the control plane to the agent.
+message ConnectResponse {
+  oneof payload {
+    Welcome welcome = 1;
+    HeartbeatAck heartbeat_ack = 2;
+  }
+}
+
+// Hello is the first message on every stream.
+message Hello {
+  // Semantic version of the agent binary.
+  string agent_version = 1;
+  HostFacts host = 2;
+}
+
+// HostFacts describes the machine the agent runs on.
+message HostFacts {
+  string hostname = 1;
+  // GOOS, e.g. "linux".
+  string os = 2;
+  // GOARCH, e.g. "amd64".
+  string arch = 3;
+  // Kernel release, e.g. "6.8.0-45-generic".
+  string kernel = 4;
+  // ID from /etc/os-release, e.g. "ubuntu".
+  string distro = 5;
+  // VERSION_ID from /etc/os-release, e.g. "24.04".
+  string distro_version = 6;
+  google.protobuf.Timestamp boot_time = 7;
+}
+
+// Heartbeat keeps the stream alive and lets the control plane track liveness.
+message Heartbeat {
+  // Monotonic sequence number per stream, starting at 1.
+  uint64 seq = 1;
+  google.protobuf.Timestamp sent_at = 2;
+}
+
+// Welcome is the control plane's reply to Hello.
+message Welcome {
+  // Server identity derived from the client certificate.
+  string server_id = 1;
+  // How often the agent should send heartbeats.
+  google.protobuf.Duration heartbeat_interval = 2;
+  google.protobuf.Timestamp server_time = 3;
+}
+
+// HeartbeatAck answers a Heartbeat so the agent can measure latency and clock skew.
+message HeartbeatAck {
+  uint64 seq = 1;
+  google.protobuf.Timestamp server_time = 2;
+}
