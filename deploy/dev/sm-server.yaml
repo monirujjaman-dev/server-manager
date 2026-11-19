@@ -2,7 +2,7 @@
 agent_listen: 127.0.0.1:8443
 api_listen: 127.0.0.1:8444
 pki_dir: .dev/pki
-database_url: postgres://sm:sm-dev-only@127.0.0.1:5432/sm?sslmode=disable
+database_url: postgres://sm:sm-dev-only@127.0.0.1:5434/sm?sslmode=disable
 heartbeat_interval: 5s
 public_agent_url: https://127.0.0.1:8443
 public_api_url: https://127.0.0.1:8444
