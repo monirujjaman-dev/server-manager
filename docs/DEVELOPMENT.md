@@ -48,7 +48,7 @@ changing anything under `api/proto/`, `internal/server/store/migrations/` or
 ## Local control plane and agent
 
 ```bash
-make dev-up           # PostgreSQL on 127.0.0.1:5432, VictoriaMetrics on 127.0.0.1:8428
+make dev-up           # PostgreSQL on 127.0.0.1:5434, VictoriaMetrics on 127.0.0.1:8428
 make dev-migrate      # apply database migrations
 make dev-pki          # CA and server certificate in ./.dev/pki
 make dev-server       # terminal 1
@@ -125,7 +125,7 @@ afterwards), so packages run in parallel safely. They need an admin URL for a se
 where that user may create databases:
 
 ```bash
-SM_TEST_DATABASE_URL='postgres://sm:sm-dev-only@127.0.0.1:5432/sm?sslmode=disable' make test
+SM_TEST_DATABASE_URL='postgres://sm:sm-dev-only@127.0.0.1:5434/sm?sslmode=disable' make test
 ```
 
 Without `SM_TEST_DATABASE_URL` those tests are skipped. CI always runs them.
