@@ -21,9 +21,12 @@ import (
 
 	agentv1 "github.com/monirujjaman-dev/server-manager/gen/sm/agent/v1"
 	"github.com/monirujjaman-dev/server-manager/gen/sm/agent/v1/agentv1connect"
+	"github.com/monirujjaman-dev/server-manager/internal/agent/modules"
+	"github.com/monirujjaman-dev/server-manager/internal/command"
 	"github.com/monirujjaman-dev/server-manager/internal/pkg/logging"
 	"github.com/monirujjaman-dev/server-manager/internal/pkg/version"
 	"github.com/monirujjaman-dev/server-manager/internal/pki"
+	"github.com/monirujjaman-dev/server-manager/internal/privd"
 )
 
 // Config is the sm-agent configuration. Environment variables use the SM_AGENT_ prefix.
@@ -46,6 +49,13 @@ type Config struct {
 	RenewBefore float64 `yaml:"renew_before" env:"RENEW_BEFORE"`
 	// RenewCheckInterval is how often the certificate is checked (default 1h).
 	RenewCheckInterval time.Duration `yaml:"renew_check_interval" env:"RENEW_CHECK_INTERVAL"`
+
+	// CommandKeyFile holds the control plane's command verification key.
+	CommandKeyFile string `yaml:"command_key_file" env:"COMMAND_KEY_FILE"`
+	// PrivdSocket is the privileged helper's UNIX socket.
+	PrivdSocket string `yaml:"privd_socket" env:"PRIVD_SOCKET"`
+	// MaxConcurrentCommands bounds parallel command execution (default 4).
+	MaxConcurrentCommands int `yaml:"max_concurrent_commands" env:"MAX_CONCURRENT_COMMANDS"`
 }
 
 // DefaultConfig returns production defaults.
@@ -60,6 +70,10 @@ func DefaultConfig() Config {
 
 		RenewBefore:        1.0 / 3,
 		RenewCheckInterval: time.Hour,
+
+		CommandKeyFile:        "/etc/sm-agent/command.pub",
+		PrivdSocket:           "/run/sm-agent/privd.sock",
+		MaxConcurrentCommands: 4,
 	}
 }
 
@@ -75,7 +89,10 @@ func (c Config) Validate() error {
 	case u.Scheme != "https" || u.Host == "":
 		errs = append(errs, errors.New("server_url must be an https:// URL"))
 	}
-	for name, v := range map[string]string{"ca_file": c.CAFile, "cert_file": c.CertFile, "key_file": c.KeyFile} {
+	for name, v := range map[string]string{
+		"ca_file": c.CAFile, "cert_file": c.CertFile, "key_file": c.KeyFile,
+		"command_key_file": c.CommandKeyFile, "privd_socket": c.PrivdSocket,
+	} {
 		if v == "" {
 			errs = append(errs, fmt.Errorf("%s is required", name))
 		}
@@ -85,6 +102,9 @@ func (c Config) Validate() error {
 	}
 	if c.RenewBefore <= 0 || c.RenewBefore >= 1 {
 		errs = append(errs, errors.New("renew_before must be between 0 and 1"))
+	}
+	if c.MaxConcurrentCommands < 1 || c.MaxConcurrentCommands > 64 {
+		errs = append(errs, errors.New("max_concurrent_commands must be between 1 and 64"))
 	}
 	if c.RenewCheckInterval < time.Second {
 		errs = append(errs, errors.New("renew_check_interval must be at least 1s"))
@@ -110,13 +130,33 @@ type Agent struct {
 	// and the next connection presents the new certificate.
 	renewed chan struct{}
 
-	mu     sync.RWMutex
-	status Status
+	host    modules.Host
+	systemd modules.Systemd
+	privd   *privd.Client
+	sem     chan struct{}
+	// results outlives individual streams so results are delivered after a reconnect.
+	results chan *agentv1.CommandResult
+	runCtx  context.Context
+
+	mu          sync.RWMutex
+	status      Status
+	verifier    *command.Verifier
+	verifierKey []byte
+	verifierID  uuid.UUID
 }
+
+// Option adjusts an Agent; used by tests to replace system access.
+type Option func(*Agent)
+
+// WithSystemd replaces the D-Bus systemd client.
+func WithSystemd(sd modules.Systemd) Option { return func(a *Agent) { a.systemd = sd } }
+
+// WithHost replaces the /proc root.
+func WithHost(h modules.Host) Option { return func(a *Agent) { a.host = h } }
 
 // New validates the configuration and prepares the client. Certificates are read on
 // every TLS handshake so a renewed certificate is picked up without a restart.
-func New(cfg Config, log *slog.Logger) (*Agent, error) {
+func New(cfg Config, log *slog.Logger, opts ...Option) (*Agent, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -154,14 +194,23 @@ func New(cfg Config, log *slog.Logger) (*Agent, error) {
 	}
 	httpClient := &http.Client{Transport: transport} // no overall timeout: the stream is long-lived
 
-	return &Agent{
+	a := &Agent{
 		cfg:       cfg,
 		log:       log,
 		client:    agentv1connect.NewAgentServiceClient(httpClient, cfg.ServerURL, connect.WithGRPC()),
 		transport: transport,
 		roots:     roots,
 		renewed:   make(chan struct{}, 1),
-	}, nil
+		host:      modules.DefaultHost(),
+		systemd:   modules.DBusSystemd{},
+		privd:     privd.NewClient(cfg.PrivdSocket),
+		sem:       make(chan struct{}, cfg.MaxConcurrentCommands),
+		results:   make(chan *agentv1.CommandResult, 64),
+	}
+	for _, o := range opts {
+		o(a)
+	}
+	return a, nil
 }
 
 func loadClientCert(certFile, keyFile string) (*tls.Certificate, error) {
@@ -195,6 +244,7 @@ func (a *Agent) setStatus(fn func(*Status)) {
 
 // Run connects and reconnects until ctx is cancelled.
 func (a *Agent) Run(ctx context.Context) error {
+	a.runCtx = ctx
 	go a.renewLoop(ctx)
 	attempt := 0
 	for {
@@ -276,6 +326,7 @@ func (a *Agent) session(ctx context.Context) (welcomed bool, err error) {
 	if skew := time.Since(welcome.GetServerTime().AsTime()); skew > time.Minute || skew < -time.Minute {
 		a.log.Warn("clock skew against control plane", "skew", skew.Round(time.Second))
 	}
+	a.updateVerifier(serverID, welcome.GetCommandPublicKey())
 	a.setStatus(func(s *Status) { s.Connected, s.ServerID = true, serverID })
 	a.log.Info("connected to control plane", "server_id", serverID.String(), "heartbeat_interval", interval.String())
 
@@ -290,6 +341,9 @@ func (a *Agent) session(ctx context.Context) (welcomed bool, err error) {
 			if ack := m.GetHeartbeatAck(); ack != nil {
 				a.setStatus(func(s *Status) { s.LastAck = time.Now() })
 			}
+			if cmd := m.GetCommand(); cmd != nil {
+				go a.handleCommand(a.runCtx, cmd)
+			}
 		}
 	}()
 
@@ -302,6 +356,14 @@ func (a *Agent) session(ctx context.Context) (welcomed bool, err error) {
 			return true, context.Cause(ctx)
 		case <-a.renewed:
 			return true, errRenewed
+		case res := <-a.results:
+			if err := stream.Send(&agentv1.ConnectRequest{Payload: &agentv1.ConnectRequest_CommandResult{CommandResult: res}}); err != nil {
+				select {
+				case a.results <- res: // retry on the next stream
+				default:
+				}
+				return true, fmt.Errorf("send command result: %w", err)
+			}
 		case err := <-recvErr:
 			return true, err
 		case <-ticker.C:

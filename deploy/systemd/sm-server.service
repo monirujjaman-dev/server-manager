@@ -1,0 +1,41 @@
+# Server Manager control plane.
+[Unit]
+Description=Server Manager control plane
+Documentation=https://github.com/monirujjaman-dev/server-manager
+Wants=network-online.target
+After=network-online.target postgresql.service
+
+[Service]
+Type=simple
+User=sm-server
+Group=sm-server
+ExecStart=/usr/local/bin/sm-server serve --config /etc/sm-server/sm-server.yaml
+Restart=always
+RestartSec=5
+
+StateDirectory=sm-server
+StateDirectoryMode=0700
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

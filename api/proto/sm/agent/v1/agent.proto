@@ -4,6 +4,7 @@ package sm.agent.v1;
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
+import "sm/agent/v1/actions.proto";
 
 // AgentService is served by the control plane on the agent gateway listener.
 // Every call requires a valid mTLS client certificate issued by the internal CA;
@@ -35,6 +36,7 @@ message ConnectRequest {
   oneof payload {
     Hello hello = 1;
     Heartbeat heartbeat = 2;
+    CommandResult command_result = 3;
   }
 }
 
@@ -43,6 +45,7 @@ message ConnectResponse {
   oneof payload {
     Welcome welcome = 1;
     HeartbeatAck heartbeat_ack = 2;
+    Command command = 3;
   }
 }
 
@@ -83,6 +86,9 @@ message Welcome {
   // How often the agent should send heartbeats.
   google.protobuf.Duration heartbeat_interval = 2;
   google.protobuf.Timestamp server_time = 3;
+  // Raw 32-byte Ed25519 public key that signs commands. Agents enrolled before this key
+  // existed store it on first sight; afterwards a different key is refused.
+  bytes command_public_key = 4;
 }
 
 // HeartbeatAck answers a Heartbeat so the agent can measure latency and clock skew.

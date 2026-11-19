@@ -101,9 +101,11 @@ type EnrollResponse struct {
 	// DER root CA certificate the agent uses to verify the control plane from now on.
 	CaCertificate []byte `protobuf:"bytes,4,opt,name=ca_certificate,json=caCertificate,proto3" json:"ca_certificate,omitempty"`
 	// Agent gateway URL, e.g. https://cp.internal:8443. Empty if not configured.
-	AgentUrl      string `protobuf:"bytes,5,opt,name=agent_url,json=agentUrl,proto3" json:"agent_url,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	AgentUrl string `protobuf:"bytes,5,opt,name=agent_url,json=agentUrl,proto3" json:"agent_url,omitempty"`
+	// Raw 32-byte Ed25519 public key that signs commands.
+	CommandPublicKey []byte `protobuf:"bytes,6,opt,name=command_public_key,json=commandPublicKey,proto3" json:"command_public_key,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *EnrollResponse) Reset() {
@@ -171,6 +173,13 @@ func (x *EnrollResponse) GetAgentUrl() string {
 	return ""
 }
 
+func (x *EnrollResponse) GetCommandPublicKey() []byte {
+	if x != nil {
+		return x.CommandPublicKey
+	}
+	return nil
+}
+
 var File_sm_agent_v1_enrollment_proto protoreflect.FileDescriptor
 
 const file_sm_agent_v1_enrollment_proto_rawDesc = "" +
@@ -180,14 +189,15 @@ const file_sm_agent_v1_enrollment_proto_rawDesc = "" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12\x10\n" +
 	"\x03csr\x18\x02 \x01(\fR\x03csr\x12#\n" +
 	"\ragent_version\x18\x03 \x01(\tR\fagentVersion\x12*\n" +
-	"\x04host\x18\x04 \x01(\v2\x16.sm.agent.v1.HostFactsR\x04host\"\xbf\x01\n" +
+	"\x04host\x18\x04 \x01(\v2\x16.sm.agent.v1.HostFactsR\x04host\"\xed\x01\n" +
 	"\x0eEnrollResponse\x12\x1b\n" +
 	"\tserver_id\x18\x01 \x01(\tR\bserverId\x12\x1f\n" +
 	"\vserver_name\x18\x02 \x01(\tR\n" +
 	"serverName\x12+\n" +
 	"\x11certificate_chain\x18\x03 \x03(\fR\x10certificateChain\x12%\n" +
 	"\x0eca_certificate\x18\x04 \x01(\fR\rcaCertificate\x12\x1b\n" +
-	"\tagent_url\x18\x05 \x01(\tR\bagentUrl2V\n" +
+	"\tagent_url\x18\x05 \x01(\tR\bagentUrl\x12,\n" +
+	"\x12command_public_key\x18\x06 \x01(\fR\x10commandPublicKey2V\n" +
 	"\x11EnrollmentService\x12A\n" +
 	"\x06Enroll\x12\x1a.sm.agent.v1.EnrollRequest\x1a\x1b.sm.agent.v1.EnrollResponseB\xb4\x01\n" +
 	"\x0fcom.sm.agent.v1B\x0fEnrollmentProtoP\x01ZBgithub.com/monirujjaman-dev/server-manager/gen/sm/agent/v1;agentv1\xa2\x02\x03SAX\xaa\x02\vSm.Agent.V1\xca\x02\vSm\\Agent\\V1\xe2\x02\x17Sm\\Agent\\V1\\GPBMetadata\xea\x02\rSm::Agent::V1b\x06proto3"

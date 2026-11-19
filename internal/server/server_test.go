@@ -119,9 +119,9 @@ func waitFor(t *testing.T, what string, cond func() bool) {
 	t.Fatalf("timed out waiting for %s", what)
 }
 
-func runAgent(t *testing.T, cfg agent.Config) (*agent.Agent, func()) {
+func runAgent(t *testing.T, cfg agent.Config, opts ...agent.Option) (*agent.Agent, func()) {
 	t.Helper()
-	ag, err := agent.New(cfg, slog.New(slog.DiscardHandler))
+	ag, err := agent.New(cfg, slog.New(slog.DiscardHandler), opts...)
 	if err != nil {
 		t.Fatal(err)
 	}

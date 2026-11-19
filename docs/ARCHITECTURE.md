@@ -147,33 +147,47 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant U as smctl
-    participant CP as sm-server
-    participant AG as sm-agent
-    participant PD as sm-privd
+    participant U as Operator (sm-server CLI, later smctl)
+    participant DB as PostgreSQL
+    participant CP as sm-server (dispatcher)
+    participant AG as sm-agent (smagent user)
+    participant PD as sm-agent privd (root, no network)
 
-    U->>CP: POST action {server, module, action, params, dry_run}
-    CP->>CP: authenticate · RBAC check · risk check (step-up MFA if high risk)
-    CP->>CP: write audit event "requested" · create job
-    CP->>AG: Command{id, action, params, expires_at, nonce, signature}
-    AG->>AG: verify signature, expiry, nonce (replay protection), allowlist
-    alt privileged action
-        AG->>PD: typed request over UNIX socket (SO_PEERCRED = smagent)
-        PD->>PD: validate params against schema, execute
-        PD-->>AG: result
-    else unprivileged action
+    U->>DB: Submit: validate typed request · insert job (pending) · audit "requested" · NOTIFY
+    DB-->>CP: NOTIFY sm_jobs (or agent connects, or 5 s sweep)
+    CP->>DB: claim pending jobs of connected server (FOR UPDATE SKIP LOCKED)
+    CP->>AG: Command{envelope, Ed25519 signature} on the agent's stream
+    AG->>AG: verify signature, target server, 60 s validity, replay, parameters
+    alt privileged action (services.control, processes.signal)
+        AG->>PD: forward the signed command unchanged (UNIX socket, SO_PEERCRED = smagent)
+        PD->>PD: verify signature, validity, replay and parameters again · execute
+        PD-->>AG: CommandResult
+    else read-only action (system.info, services.list, processes.list)
         AG->>AG: execute
     end
-    AG-->>CP: progress … result
-    CP->>CP: write audit event "completed/failed" · update job
-    CP-->>U: result (streamed)
+    AG-->>CP: CommandResult on the stream (queued across reconnects)
+    CP->>DB: complete job (only by the server it was sent to, once) · audit outcome
+    U->>DB: poll job until finished
 ```
 
+- **Durable queue:** jobs live in PostgreSQL. A job for an offline server waits until
+  the agent connects (default 10 minutes, then `expired`). The command is signed at
+  dispatch time, so its 60-second validity starts when it is actually sent.
+- **No blind retries:** a dispatched job without a result after 2 minutes is marked
+  `failed` with "outcome unknown". It is never re-sent, because a restart or kill may
+  already have happened.
+- **Signature checked twice:** the privileged helper verifies the control plane's
+  signature itself, with its own replay cache. A compromised network-facing agent can
+  therefore ask the helper for nothing that the control plane did not sign.
+- **Command key:** a separate Ed25519 key (`pki_dir/command.key`) created on first start.
+  Agents receive the public key at enrollment. Agents enrolled earlier store the key
+  the first time they see it in `Welcome` (over the authenticated stream) and refuse a
+  different key afterwards.
+
 **Why sign commands when mTLS already authenticates the channel?** Defense in
-depth. The signing key is separate from the TLS key and can live in a KMS/HSM.
-Signatures with a short expiry (60 s) and a nonce stop replay, and they guarantee
-that a command really came from the control plane's scheduler even if a proxy or
-load balancer sits in the path.
+depth. The signing key is separate from the TLS key and can live in a KMS/HSM later.
+Signatures with a short expiry and a unique ID stop replay, and the privileged helper,
+which never touches the network, can verify the origin of every command on its own.
 
 ---
 

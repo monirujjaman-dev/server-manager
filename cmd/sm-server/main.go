@@ -76,5 +76,6 @@ func rootCmd() *cobra.Command {
 		Run:   func(cmd *cobra.Command, _ []string) { cmd.Println(version.String("sm-server")) },
 	})
 	root.AddCommand(migrateCmd(loadConfig), pkiCmd(loadConfig), enrollCmd(loadConfig), serversCmd(loadConfig), groupsCmd(loadConfig), auditCmd(loadConfig))
+	root.AddCommand(actionCommands(loadConfig)...)
 	return root
 }

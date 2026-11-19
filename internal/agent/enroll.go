@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/sha256"
 	"crypto/subtle"
 	"crypto/tls"
@@ -13,7 +14,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -41,6 +44,9 @@ type EnrollOptions struct {
 	Dir string
 	// AgentURL overrides the agent gateway URL returned by the control plane.
 	AgentURL string
+	// Owner, if set, becomes the owner of Dir and the files in it, so the agent can run
+	// unprivileged as that user and rewrite its certificate on renewal.
+	Owner string
 }
 
 // EnrollResult describes a successful enrollment.
@@ -136,9 +142,19 @@ func Enroll(ctx context.Context, opts EnrollOptions) (EnrollResult, error) {
 	if err := pki.WriteCertFile(paths.ca, root); err != nil {
 		return EnrollResult{}, err
 	}
+	if k := resp.Msg.GetCommandPublicKey(); len(k) == ed25519.PublicKeySize {
+		if err := pki.WriteCommandPublicKey(paths.cmdKey, k); err != nil {
+			return EnrollResult{}, err
+		}
+	}
 	res.ConfigPath = filepath.Join(opts.Dir, "agent.yaml")
 	if err := writeAgentConfig(res.ConfigPath, res.AgentURL, paths); err != nil {
 		return EnrollResult{}, err
+	}
+	if opts.Owner != "" {
+		if err := chownAll(opts.Owner, opts.Dir, paths.key, paths.cert, paths.ca, paths.cmdKey, res.ConfigPath); err != nil {
+			return EnrollResult{}, err
+		}
 	}
 	return res, nil
 }
@@ -194,13 +210,36 @@ func checkEnrollResponse(m *agentv1.EnrollResponse, serverChain []*x509.Certific
 	return EnrollResult{ServerID: id, ServerName: m.GetServerName()}, chain, root, nil
 }
 
-type filePaths struct{ key, cert, ca string }
+// chownAll gives the agent user its files. Missing files are skipped.
+func chownAll(owner string, paths ...string) error {
+	u, err := user.Lookup(owner)
+	if err != nil {
+		return fmt.Errorf("owner %q: %w (create it, e.g. useradd --system smagent)", owner, err)
+	}
+	uid, err := strconv.Atoi(u.Uid)
+	if err != nil {
+		return err
+	}
+	gid, err := strconv.Atoi(u.Gid)
+	if err != nil {
+		return err
+	}
+	for _, p := range paths {
+		if err := os.Chown(p, uid, gid); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+	}
+	return nil
+}
+
+type filePaths struct{ key, cert, ca, cmdKey string }
 
 func agentPaths(dir string) filePaths {
 	return filePaths{
-		key:  filepath.Join(dir, "agent.key"),
-		cert: filepath.Join(dir, "agent.crt"),
-		ca:   filepath.Join(dir, "ca.crt"),
+		key:    filepath.Join(dir, "agent.key"),
+		cert:   filepath.Join(dir, "agent.crt"),
+		ca:     filepath.Join(dir, "ca.crt"),
+		cmdKey: filepath.Join(dir, "command.pub"),
 	}
 }
 
@@ -216,6 +255,8 @@ func writeAgentConfig(path, agentURL string, p filePaths) error {
 		"ca_file":    abs(p.ca),
 		"cert_file":  abs(p.cert),
 		"key_file":   abs(p.key),
+		// Written at enrollment, or on first connection for older control planes.
+		"command_key_file": abs(p.cmdKey),
 	}
 	data, err := yaml.Marshal(cfg)
 	if err != nil {

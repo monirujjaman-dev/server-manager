@@ -47,6 +47,22 @@ type EnrollmentToken struct {
 	ServerID   *uuid.UUID
 }
 
+type Job struct {
+	ID           uuid.UUID
+	ServerID     uuid.UUID
+	Action       string
+	Risk         string
+	Request      []byte
+	RequestedBy  string
+	Status       string
+	Error        string
+	Result       []byte
+	CreatedAt    time.Time
+	ExpiresAt    time.Time
+	DispatchedAt *time.Time
+	FinishedAt   *time.Time
+}
+
 type Server struct {
 	ID            uuid.UUID
 	Name          string

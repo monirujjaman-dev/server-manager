@@ -39,7 +39,8 @@ See the [development guide](docs/DEVELOPMENT.md) for the database, tests and VMs
 ## Status
 
 - **Phase 0 (foundations):** done.
-- **Phase 1 (MVP):** in progress — token enrollment, certificate renewal, database-backed
-  revocation and a hash-chained audit log are done; command dispatch, the privileged
-  helper, system/services/processes/logs modules, user authentication and RBAC are next.
+- **Phase 1 (MVP):** in progress. Done: token enrollment, certificate renewal,
+  database-backed revocation, hash-chained audit log, signed command dispatch, the
+  privileged helper, and the system/services/processes actions. Next: metrics and
+  dashboard, logs, user authentication and RBAC, packaging.
   See the [development plan](docs/DEVELOPMENT_PLAN.md).

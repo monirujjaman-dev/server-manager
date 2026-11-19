@@ -54,6 +54,10 @@ type Hooks interface {
 	OnHello(ctx context.Context, id uuid.UUID, hello *agentv1.Hello) error
 	OnHeartbeat(ctx context.Context, id uuid.UUID) error
 	OnDisconnect(ctx context.Context, id uuid.UUID)
+	// OnSessionStart runs after the welcome was sent; the session can receive commands.
+	OnSessionStart(ctx context.Context, id uuid.UUID)
+	// OnCommandResult records a result reported by the agent.
+	OnCommandResult(ctx context.Context, id uuid.UUID, res *agentv1.CommandResult) error
 }
 
 // NopHooks does nothing.
@@ -62,6 +66,10 @@ type NopHooks struct{}
 func (NopHooks) OnHello(context.Context, uuid.UUID, *agentv1.Hello) error { return nil }
 func (NopHooks) OnHeartbeat(context.Context, uuid.UUID) error             { return nil }
 func (NopHooks) OnDisconnect(context.Context, uuid.UUID)                  {}
+func (NopHooks) OnSessionStart(context.Context, uuid.UUID)                {}
+func (NopHooks) OnCommandResult(context.Context, uuid.UUID, *agentv1.CommandResult) error {
+	return nil
+}
 
 // Options configures a Gateway.
 type Options struct {
@@ -70,8 +78,10 @@ type Options struct {
 	// Revocations is checked on every stream, not only at TLS handshake time: HTTP/2
 	// reuses connections, so a revoked agent could otherwise open new streams on a
 	// connection established before the revocation.
-	Revocations       pki.RevocationChecker
-	Renewer           CertRenewer
+	Revocations pki.RevocationChecker
+	Renewer     CertRenewer
+	// CommandPublicKey is sent in Welcome so agents can verify commands.
+	CommandPublicKey  []byte
 	HeartbeatInterval time.Duration // default 15s
 	HelloTimeout      time.Duration // default 10s
 	// MissedHeartbeats is how many intervals may pass without a heartbeat before the
@@ -230,6 +240,7 @@ func (g *Gateway) Connect(ctx context.Context, stream *connect.BidiStream[agentv
 			Hostname: hello.GetHost().GetHostname(), ConnectedAt: now, LastSeen: now,
 		},
 		cancel: cancel,
+		outbox: make(chan *agentv1.ConnectResponse, outboxSize),
 	}
 	if old := g.reg.attach(sess); old != nil {
 		old.cancel(ErrReplaced)
@@ -248,9 +259,11 @@ func (g *Gateway) Connect(ctx context.Context, stream *connect.BidiStream[agentv
 		ServerId:          id.String(),
 		HeartbeatInterval: durationpb.New(g.opts.HeartbeatInterval),
 		ServerTime:        timestamppb.New(now),
+		CommandPublicKey:  g.opts.CommandPublicKey,
 	}}}); err != nil {
 		return err
 	}
+	g.hooks.OnSessionStart(ctx, id)
 
 	// End the stream when the certificate that authenticated it expires.
 	if who.cert != nil {
@@ -287,10 +300,18 @@ func (g *Gateway) Connect(ctx context.Context, stream *connect.BidiStream[agentv
 				}}); err != nil {
 					return err
 				}
+			case *agentv1.ConnectRequest_CommandResult:
+				if err := g.hooks.OnCommandResult(ctx, id, p.CommandResult); err != nil {
+					log.Warn("command result not recorded", "job_id", p.CommandResult.GetId(), "err", err)
+				}
 			case *agentv1.ConnectRequest_Hello:
 				return connect.NewError(connect.CodeInvalidArgument, errors.New("duplicate hello"))
 			default:
 				return connect.NewError(connect.CodeInvalidArgument, errors.New("unknown message"))
+			}
+		case out := <-sess.outbox:
+			if err := stream.Send(out); err != nil {
+				return err
 			}
 		case err := <-recvErr:
 			if errors.Is(err, io.EOF) {

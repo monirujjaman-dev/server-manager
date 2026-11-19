@@ -1,0 +1,46 @@
+# Server Manager privileged helper: root, but no network at all. Listens only on
+# /run/sm-agent/privd.sock (group smagent, mode 0660) and runs only commands signed by
+# the control plane.
+[Unit]
+Description=Server Manager privileged helper
+Documentation=https://github.com/monirujjaman-dev/server-manager
+Before=sm-agent.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/sm-agent privd
+Restart=always
+RestartSec=5
+Environment=SM_PRIVD_AGENT_USER=smagent
+
+RuntimeDirectory=sm-agent
+RuntimeDirectoryMode=0750
+# No network namespace access: only filesystem UNIX sockets (its own and D-Bus) work.
+PrivateNetwork=yes
+IPAddressDeny=any
+RestrictAddressFamilies=AF_UNIX AF_NETLINK
+# CAP_KILL: signal processes. CAP_CHOWN: give the socket to the agent's group.
+# CAP_DAC_READ_SEARCH: read the agent's certificate and command key in /etc/sm-agent.
+CapabilityBoundingSet=CAP_KILL CAP_CHOWN CAP_DAC_READ_SEARCH
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

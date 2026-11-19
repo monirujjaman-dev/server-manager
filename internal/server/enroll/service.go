@@ -34,6 +34,7 @@ type Service struct {
 	st       *store.Store
 	ca       *pki.CA
 	agentURL string
+	cmdKey   []byte
 	log      *slog.Logger
 	limiter  *ipLimiter
 	// renewAfter is the fraction of a certificate's lifetime that must have passed
@@ -45,7 +46,9 @@ type Service struct {
 type Options struct {
 	// AgentURL is returned to enrolling agents (public agent gateway URL).
 	AgentURL string
-	Logger   *slog.Logger
+	// CommandPublicKey is the Ed25519 key agents use to verify commands.
+	CommandPublicKey []byte
+	Logger           *slog.Logger
 	// RenewAfter is the fraction of lifetime after which renewal is allowed (default 0.5).
 	RenewAfter float64
 	// RateLimit and RateBurst bound enrollment attempts per source IP (default 5/min, burst 5).
@@ -68,7 +71,7 @@ func NewService(st *store.Store, ca *pki.CA, opts Options) *Service {
 		opts.RateBurst = 5
 	}
 	return &Service{
-		st: st, ca: ca, agentURL: opts.AgentURL, log: opts.Logger,
+		st: st, ca: ca, agentURL: opts.AgentURL, cmdKey: opts.CommandPublicKey, log: opts.Logger,
 		limiter: newIPLimiter(opts.RateLimit, opts.RateBurst), renewAfter: opts.RenewAfter,
 	}
 }
@@ -161,6 +164,7 @@ func (s *Service) Enroll(ctx context.Context, req *connect.Request[agentv1.Enrol
 		CertificateChain: [][]byte{cert.Raw, s.ca.Intermediate.Raw},
 		CaCertificate:    s.ca.Root.Raw,
 		AgentUrl:         s.agentURL,
+		CommandPublicKey: s.cmdKey,
 	}), nil
 }
 
