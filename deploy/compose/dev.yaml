@@ -3,13 +3,13 @@ name: server-manager-dev
 
 services:
   postgres:
-    image: postgres:17.11-alpine
+    image: postgres:17.12-alpine
     environment:
       POSTGRES_USER: sm
       POSTGRES_PASSWORD: sm-dev-only
       POSTGRES_DB: sm
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:5434:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -19,7 +19,7 @@ services:
       retries: 30
 
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.148.9
+    image: victoriametrics/victoria-metrics:v1.156.0
     command:
       - -retentionPeriod=30d
       - -httpListenAddr=:8428

@@ -10,7 +10,7 @@ VERSION_PKG := github.com/monirujjaman-dev/server-manager/internal/pkg/version
 LDFLAGS     := -s -w -X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).Date=$(DATE)
 GOLANGCI    ?= golangci-lint
 COMPOSE     ?= docker compose -f deploy/compose/dev.yaml
-DEV_DB_URL  ?= postgres://sm:sm-dev-only@127.0.0.1:5432/sm?sslmode=disable
+DEV_DB_URL  ?= postgres://sm:sm-dev-only@127.0.0.1:5434/sm?sslmode=disable
 DEV_DIR     ?= .dev
 
 .PHONY: help
