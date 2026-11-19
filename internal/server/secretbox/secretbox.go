@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/monirujjaman-dev/server-manager/internal/pki"
 )
 
 // KeyFile is the key's file name inside the PKI directory.
@@ -43,7 +45,7 @@ func LoadOrCreate(dir string) (*Box, bool, error) {
 		created = true
 	} else if err != nil {
 		return nil, false, err
-	} else if fi, err := os.Stat(path); err == nil && fi.Mode().Perm()&0o077 != 0 {
+	} else if fi, err := os.Stat(path); err == nil && pki.PermsTooOpen(fi.Mode()) {
 		return nil, false, fmt.Errorf("%s: permissions %o are too open (want 0600)", path, fi.Mode().Perm())
 	}
 	b, err := New(key)

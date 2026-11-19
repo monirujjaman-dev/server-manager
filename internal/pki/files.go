@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 )
 
 // File names inside a control-plane PKI directory.
@@ -165,7 +166,7 @@ func ReadKeyFile(path string) (crypto.Signer, error) {
 	if err != nil {
 		return nil, err
 	}
-	if fi.Mode().Perm()&0o077 != 0 {
+	if PermsTooOpen(fi.Mode()) {
 		return nil, fmt.Errorf("%s: private key permissions %o are too open (want 0600)", path, fi.Mode().Perm())
 	}
 	data, err := os.ReadFile(path) //nolint:gosec // operator-supplied path
@@ -185,6 +186,13 @@ func ReadKeyFile(path string) (crypto.Signer, error) {
 		return nil, fmt.Errorf("%s: key type %T cannot sign", path, k)
 	}
 	return signer, nil
+}
+
+// PermsTooOpen reports whether a secret file is readable by group or others. Windows
+// does not use Unix permission bits (access is controlled by ACLs, and Go reports such
+// files as 0666), so the check only applies elsewhere.
+func PermsTooOpen(mode os.FileMode) bool {
+	return runtime.GOOS != "windows" && mode.Perm()&0o077 != 0
 }
 
 func writeKey(path string, key crypto.Signer, overwrite bool) error {

@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/proto"
 
 	agentv1 "github.com/monirujjaman-dev/server-manager/gen/sm/agent/v1"
@@ -83,7 +82,7 @@ type Options struct {
 
 // New prepares the helper.
 func New(cfg Config, log *slog.Logger, opts Options) (*Server, error) {
-	s := &Server{cfg: cfg, log: log, host: modules.DefaultHost(), systemd: modules.DBusSystemd{}, kill: syscall.Kill}
+	s := &Server{cfg: cfg, log: log, host: modules.DefaultHost(), systemd: modules.DBusSystemd{}, kill: modules.Kill}
 	if opts.Host != nil {
 		s.host = *opts.Host
 	}
@@ -178,24 +177,10 @@ func AgentGID(name string) (int, error) {
 
 type credKey struct{}
 
-// peerCred reads the connecting process's credentials from the kernel.
-func peerCred(c net.Conn) (*unix.Ucred, error) {
-	uc, ok := c.(*net.UnixConn)
-	if !ok {
-		return nil, errors.New("not a UNIX socket")
-	}
-	raw, err := uc.SyscallConn()
-	if err != nil {
-		return nil, err
-	}
-	var cred *unix.Ucred
-	var credErr error
-	if err := raw.Control(func(fd uintptr) {
-		cred, credErr = unix.GetsockoptUcred(int(fd), unix.SOL_SOCKET, unix.SO_PEERCRED) //nolint:gosec // fd fits int
-	}); err != nil {
-		return nil, err
-	}
-	return cred, credErr
+// peer identifies the process on the other end of the socket, as reported by the kernel.
+type peer struct {
+	uid uint32
+	pid int32
 }
 
 // Serve handles requests on ln until ctx ends.
@@ -231,11 +216,11 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 
 func (s *Server) requirePeer(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cred, ok := r.Context().Value(credKey{}).(*unix.Ucred)
-		if !ok || cred.Uid != s.allowedUID {
+		cred, ok := r.Context().Value(credKey{}).(*peer)
+		if !ok || cred.uid != s.allowedUID {
 			uid := "unknown"
 			if ok {
-				uid = strconv.FormatUint(uint64(cred.Uid), 10)
+				uid = strconv.FormatUint(uint64(cred.uid), 10)
 			}
 			s.log.Warn("rejected connection from unauthorized user", "uid", uid)
 			http.Error(w, "forbidden", http.StatusForbidden)
@@ -247,12 +232,12 @@ func (s *Server) requirePeer(next http.Handler) http.Handler {
 
 // Execute verifies and runs one privileged action.
 func (s *Server) Execute(ctx context.Context, req *connect.Request[agentv1.ExecuteRequest]) (*connect.Response[agentv1.ExecuteResponse], error) {
-	cred, _ := ctx.Value(credKey{}).(*unix.Ucred)
+	cred, _ := ctx.Value(credKey{}).(*peer)
 	res := s.execute(ctx, req.Msg.GetCommand(), cred)
 	return connect.NewResponse(&agentv1.ExecuteResponse{Result: res}), nil
 }
 
-func (s *Server) execute(ctx context.Context, cmd *agentv1.Command, cred *unix.Ucred) *agentv1.CommandResult {
+func (s *Server) execute(ctx context.Context, cmd *agentv1.Command, cred *peer) *agentv1.CommandResult {
 	id := unverifiedID(cmd)
 	reject := func(err error) *agentv1.CommandResult {
 		s.log.Warn("command rejected", "job_id", id, "err", err)
@@ -279,7 +264,7 @@ func (s *Server) execute(ctx context.Context, cmd *agentv1.Command, cred *unix.U
 	return &agentv1.CommandResult{Id: env.GetId(), Status: agentv1.CommandStatus_COMMAND_STATUS_SUCCEEDED, Result: result}
 }
 
-func (s *Server) run(ctx context.Context, req *agentv1.ActionRequest, cred *unix.Ucred) (*agentv1.ActionResult, error) {
+func (s *Server) run(ctx context.Context, req *agentv1.ActionRequest, cred *peer) (*agentv1.ActionResult, error) {
 	switch a := req.GetAction().(type) {
 	case *agentv1.ActionRequest_ServiceControl:
 		r, err := modules.ControlService(ctx, s.systemd, a.ServiceControl)
@@ -290,7 +275,7 @@ func (s *Server) run(ctx context.Context, req *agentv1.ActionRequest, cred *unix
 	case *agentv1.ActionRequest_ProcessSignal:
 		protected := []int32{int32(os.Getpid())} //nolint:gosec // PIDs fit int32
 		if cred != nil {
-			protected = append(protected, cred.Pid)
+			protected = append(protected, cred.pid)
 		}
 		if err := s.host.SignalProcess(a.ProcessSignal, protected, s.kill); err != nil {
 			return nil, err

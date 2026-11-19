@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -29,6 +30,15 @@ func main() {
 	}
 }
 
+// requireLinux stops commands that need Linux kernel interfaces (/proc, systemd,
+// SO_PEERCRED). `sm-agent enroll` works anywhere.
+func requireLinux() error {
+	if runtime.GOOS != "linux" {
+		return fmt.Errorf("sm-agent runs on Linux servers only (this is %s); run it on the managed server, in WSL or in a Linux VM", runtime.GOOS)
+	}
+	return nil
+}
+
 func rootCmd() *cobra.Command {
 	var configPath, privdConfig string
 	root := &cobra.Command{
@@ -48,6 +58,9 @@ func rootCmd() *cobra.Command {
 		Short: "Connect to the control plane and serve requests",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if err := requireLinux(); err != nil {
+				return err
+			}
 			cfg := agent.DefaultConfig()
 			if err := config.Load(configPath, envPrefix, &cfg); err != nil {
 				return err
@@ -105,6 +118,9 @@ accepts connections only from the agent user, and executes privileged actions on
 after verifying the control plane's signature itself.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if err := requireLinux(); err != nil {
+				return err
+			}
 			cfg := privd.DefaultConfig()
 			if err := config.Load(privdConfig, "SM_PRIVD_", &cfg); err != nil {
 				return err

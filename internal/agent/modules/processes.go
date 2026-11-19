@@ -79,11 +79,11 @@ func (h Host) owner(pid int32) string {
 	if err != nil {
 		return ""
 	}
-	st, ok := fi.Sys().(*syscall.Stat_t)
+	n, ok := fileUID(fi)
 	if !ok {
 		return ""
 	}
-	uid := strconv.FormatUint(uint64(st.Uid), 10)
+	uid := strconv.FormatUint(uint64(n), 10)
 	if u, err := user.LookupId(uid); err == nil {
 		return u.Username
 	}
@@ -158,13 +158,6 @@ func (h Host) ListProcesses(ctx context.Context, req *agentv1.ProcessListRequest
 		p.CommandLine = h.cmdline(p.Pid)
 	}
 	return &agentv1.ProcessListResult{Processes: procs, Total: uint32(total)}, nil //nolint:gosec // process count fits
-}
-
-var signals = map[agentv1.Signal]syscall.Signal{
-	agentv1.Signal_SIGNAL_TERM: syscall.SIGTERM, agentv1.Signal_SIGNAL_KILL: syscall.SIGKILL,
-	agentv1.Signal_SIGNAL_HUP: syscall.SIGHUP, agentv1.Signal_SIGNAL_INT: syscall.SIGINT,
-	agentv1.Signal_SIGNAL_QUIT: syscall.SIGQUIT, agentv1.Signal_SIGNAL_USR1: syscall.SIGUSR1,
-	agentv1.Signal_SIGNAL_USR2: syscall.SIGUSR2,
 }
 
 // SignalProcess sends a signal after safety checks: never PID 1, protected PIDs (the
