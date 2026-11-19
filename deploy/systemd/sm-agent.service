@@ -10,6 +10,8 @@ After=network-online.target sm-agent-privd.service
 Type=simple
 User=smagent
 Group=smagent
+# Read the system journal for logs.query and logs.auth.
+SupplementaryGroups=systemd-journal
 ExecStart=/usr/local/bin/sm-agent run --config /etc/sm-agent/agent.yaml
 Restart=always
 RestartSec=5

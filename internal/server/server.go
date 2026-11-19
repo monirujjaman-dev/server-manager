@@ -27,6 +27,7 @@ import (
 	"github.com/monirujjaman-dev/server-manager/internal/server/fleet"
 	"github.com/monirujjaman-dev/server-manager/internal/server/gateway"
 	"github.com/monirujjaman-dev/server-manager/internal/server/jobs"
+	"github.com/monirujjaman-dev/server-manager/internal/server/metrics"
 	"github.com/monirujjaman-dev/server-manager/internal/server/store"
 )
 
@@ -43,8 +44,11 @@ type Config struct {
 	PublicAgentURL string `yaml:"public_agent_url" env:"PUBLIC_AGENT_URL"`
 	// PublicAPIURL is how operators and enrolling agents reach api_listen. It is only
 	// used to print enrollment commands.
-	PublicAPIURL string         `yaml:"public_api_url" env:"PUBLIC_API_URL"`
-	Log          logging.Config `yaml:"log"`
+	PublicAPIURL string `yaml:"public_api_url" env:"PUBLIC_API_URL"`
+	// VictoriaMetricsURL, e.g. http://127.0.0.1:8428, receives metric history. Optional:
+	// without it only the latest snapshot per server is kept (for the dashboard).
+	VictoriaMetricsURL string         `yaml:"victoriametrics_url" env:"VICTORIAMETRICS_URL"`
+	Log                logging.Config `yaml:"log"`
 }
 
 // DefaultConfig returns production defaults.
@@ -100,6 +104,7 @@ type Server struct {
 	revocations pki.RevocationChecker
 	enroll      *enroll.Service
 	jobs        *jobs.Dispatcher
+	vm          *metrics.VMWriter
 	gw          *gateway.Gateway
 }
 
@@ -159,9 +164,14 @@ func New(ctx context.Context, cfg Config, log *slog.Logger, opts ...Option) (*Se
 		RenewAfter:       o.renewAfter,
 	})
 	dispatcher := jobs.NewDispatcher(st, signer, log.With("component", "jobs"))
+	var vm *metrics.VMWriter
+	if cfg.VictoriaMetricsURL != "" {
+		vm = metrics.NewVMWriter(cfg.VictoriaMetricsURL, log.With("component", "victoriametrics"))
+	}
+	sink := metrics.NewSink(st.Queries, vm, log.With("component", "metrics"))
 	gw := gateway.New(gateway.Options{
 		Logger:            log.With("component", "gateway"),
-		Hooks:             hooks{Hooks: fleet.Hooks{Q: st.Queries, Log: log.With("component", "fleet")}, d: dispatcher},
+		Hooks:             hooks{Hooks: fleet.Hooks{Q: st.Queries, Log: log.With("component", "fleet")}, d: dispatcher, m: sink},
 		Revocations:       revocations,
 		Renewer:           enrollSvc,
 		CommandPublicKey:  signer.PublicKey(),
@@ -177,6 +187,7 @@ func New(ctx context.Context, cfg Config, log *slog.Logger, opts ...Option) (*Se
 		revocations: revocations,
 		enroll:      enrollSvc,
 		jobs:        dispatcher,
+		vm:          vm,
 		gw:          gw,
 	}, nil
 }
@@ -185,6 +196,11 @@ func New(ctx context.Context, cfg Config, log *slog.Logger, opts ...Option) (*Se
 type hooks struct {
 	fleet.Hooks
 	d *jobs.Dispatcher
+	m *metrics.Sink
+}
+
+func (h hooks) OnMetrics(ctx context.Context, id uuid.UUID, b *agentv1.MetricsBatch) error {
+	return h.m.Record(ctx, id, b)
 }
 
 func (h hooks) OnSessionStart(_ context.Context, id uuid.UUID) { h.d.Kick(id) }
@@ -235,6 +251,9 @@ func (s *Server) Serve(ctx context.Context, agentLn, apiLn net.Listener) error {
 	g.Go(serve(agentSrv, agentLn, "agent"))
 	g.Go(serve(apiSrv, apiLn, "api"))
 	g.Go(func() error { return s.jobs.Run(gctx) })
+	if s.vm != nil {
+		g.Go(func() error { return s.vm.Run(gctx) })
+	}
 	g.Go(func() error {
 		<-gctx.Done()
 		s.log.Info("shutting down")

@@ -189,6 +189,23 @@ depth. The signing key is separate from the TLS key and can live in a KMS/HSM la
 Signatures with a short expiry and a unique ID stop replay, and the privileged helper,
 which never touches the network, can verify the origin of every command on its own.
 
+### 3.4 Metrics
+
+- The agent collects CPU (from `/proc/stat` deltas), load, memory, swap, uptime,
+  filesystems and per-interface network counters and rates every 15 s and pushes a
+  `MetricsBatch` on its stream.
+- While disconnected, batches are kept in a bounded in-memory buffer (default 480
+  batches, two hours) and sent oldest-first after reconnecting. The buffer survives
+  disconnects but not an agent restart.
+- The control plane validates each batch (time window, label sizes, counts), upserts the
+  latest snapshot per server into PostgreSQL (`server_metrics`, used by the dashboard;
+  late batches never overwrite newer ones) and, when `victoriametrics_url` is set, queues
+  the samples for VictoriaMetrics' Prometheus text import with retry and bounded memory.
+- Metric names: `sm_cpu_percent`, `sm_load1|5|15`, `sm_memory_total_bytes`,
+  `sm_memory_available_bytes`, `sm_swap_*`, `sm_uptime_seconds`,
+  `sm_filesystem_size_bytes` / `sm_filesystem_avail_bytes` {mount, fstype},
+  `sm_network_{receive,transmit}_{bytes,errors}_total` {interface}; all carry `server_id`.
+
 ---
 
 ## 4. Action model

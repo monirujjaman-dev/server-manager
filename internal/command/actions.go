@@ -30,7 +30,12 @@ type Info struct {
 var (
 	unitRe       = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9@._:-]{0,250}\.service$`)
 	unitSuffixRe = regexp.MustCompile(`\.[a-z]+$`)
+	anyUnitRe    = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9@._:-]{0,250}\.(service|socket|timer|mount|automount|target|scope|slice|path|device|swap)$`)
+	// Journal cursors are "s=...;i=...;b=..." made of hex and these separators.
+	cursorRe = regexp.MustCompile(`^[a-zA-Z0-9=;_-]*$`)
 )
+
+const maxLogSince = 30 * 24 * 3600
 
 // Describe returns the action's metadata.
 func Describe(req *agentv1.ActionRequest) (Info, error) {
@@ -50,6 +55,10 @@ func Describe(req *agentv1.ActionRequest) (Info, error) {
 		return Info{Name: "processes.list", Risk: RiskRead}, nil
 	case *agentv1.ActionRequest_ProcessSignal:
 		return Info{Name: "processes.signal", Risk: RiskMedium, Privileged: true}, nil
+	case *agentv1.ActionRequest_LogQuery:
+		return Info{Name: "logs.query", Risk: RiskRead}, nil
+	case *agentv1.ActionRequest_AuthLog:
+		return Info{Name: "logs.auth", Risk: RiskRead}, nil
 	case nil:
 		return Info{}, errors.New("empty action")
 	default:
@@ -79,6 +88,24 @@ func Validate(req *agentv1.ActionRequest) error {
 	case *agentv1.ActionRequest_ProcessList:
 		if a.ProcessList.GetLimit() > 500 {
 			return errors.New("limit must be at most 500")
+		}
+	case *agentv1.ActionRequest_LogQuery:
+		q := a.LogQuery
+		if q.GetUnit() != "" && !anyUnitRe.MatchString(q.GetUnit()) {
+			return fmt.Errorf("invalid unit name %q", q.GetUnit())
+		}
+		if q.GetLimit() > 500 || len(q.GetGrep()) > 256 || q.GetSinceSeconds() > maxLogSince {
+			return errors.New("limit (max 500), grep (max 256 bytes) or since (max 30 days) out of range")
+		}
+		if q.MaxPriority != nil && q.GetMaxPriority() > 7 {
+			return errors.New("priority must be 0-7")
+		}
+		if len(q.GetAfterCursor()) > 1024 || !cursorRe.MatchString(q.GetAfterCursor()) {
+			return errors.New("invalid journal cursor")
+		}
+	case *agentv1.ActionRequest_AuthLog:
+		if a.AuthLog.GetLimit() > 500 || a.AuthLog.GetSinceSeconds() > maxLogSince {
+			return errors.New("limit (max 500) or since (max 30 days) out of range")
 		}
 	case *agentv1.ActionRequest_ProcessSignal:
 		if a.ProcessSignal.GetPid() <= 1 {

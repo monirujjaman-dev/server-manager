@@ -105,6 +105,23 @@ func TestValidate(t *testing.T) {
 	if err := Validate(restart("getty@tty1.service")); err != nil {
 		t.Error(err)
 	}
+	logq := func(q *agentv1.LogQueryRequest) *agentv1.ActionRequest {
+		return &agentv1.ActionRequest{Action: &agentv1.ActionRequest_LogQuery{LogQuery: q}}
+	}
+	seven, eight := uint32(7), uint32(8)
+	for name, q := range map[string]*agentv1.LogQueryRequest{
+		"flag as unit":     {Unit: "--merge"},
+		"cursor injection": {AfterCursor: "x --merge"},
+		"priority 8":       {MaxPriority: &eight},
+		"huge limit":       {Limit: 10000},
+	} {
+		if Validate(logq(q)) == nil {
+			t.Errorf("log query %s accepted", name)
+		}
+	}
+	if err := Validate(logq(&agentv1.LogQueryRequest{Unit: "ssh.socket", MaxPriority: &seven, AfterCursor: "s=ab;i=1f;b=cd"})); err != nil {
+		t.Error(err)
+	}
 	if NormalizeUnit("nginx") != "nginx.service" || NormalizeUnit("ssh.socket") != "ssh.socket" {
 		t.Error("NormalizeUnit")
 	}

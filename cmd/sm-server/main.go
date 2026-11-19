@@ -77,5 +77,6 @@ func rootCmd() *cobra.Command {
 	})
 	root.AddCommand(migrateCmd(loadConfig), pkiCmd(loadConfig), enrollCmd(loadConfig), serversCmd(loadConfig), groupsCmd(loadConfig), auditCmd(loadConfig))
 	root.AddCommand(actionCommands(loadConfig)...)
+	root.AddCommand(observeCommands(loadConfig)...)
 	return root
 }

@@ -121,6 +121,7 @@ type ConnectRequest struct {
 	//	*ConnectRequest_Hello
 	//	*ConnectRequest_Heartbeat
 	//	*ConnectRequest_CommandResult
+	//	*ConnectRequest_Metrics
 	Payload       isConnectRequest_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -190,6 +191,15 @@ func (x *ConnectRequest) GetCommandResult() *CommandResult {
 	return nil
 }
 
+func (x *ConnectRequest) GetMetrics() *MetricsBatch {
+	if x != nil {
+		if x, ok := x.Payload.(*ConnectRequest_Metrics); ok {
+			return x.Metrics
+		}
+	}
+	return nil
+}
+
 type isConnectRequest_Payload interface {
 	isConnectRequest_Payload()
 }
@@ -206,11 +216,17 @@ type ConnectRequest_CommandResult struct {
 	CommandResult *CommandResult `protobuf:"bytes,3,opt,name=command_result,json=commandResult,proto3,oneof"`
 }
 
+type ConnectRequest_Metrics struct {
+	Metrics *MetricsBatch `protobuf:"bytes,4,opt,name=metrics,proto3,oneof"`
+}
+
 func (*ConnectRequest_Hello) isConnectRequest_Payload() {}
 
 func (*ConnectRequest_Heartbeat) isConnectRequest_Payload() {}
 
 func (*ConnectRequest_CommandResult) isConnectRequest_Payload() {}
+
+func (*ConnectRequest_Metrics) isConnectRequest_Payload() {}
 
 // ConnectResponse is a message sent from the control plane to the agent.
 type ConnectResponse struct {
@@ -647,15 +663,16 @@ var File_sm_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_sm_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x17sm/agent/v1/agent.proto\x12\vsm.agent.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x19sm/agent/v1/actions.proto\"+\n" +
+	"\x17sm/agent/v1/agent.proto\x12\vsm.agent.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x19sm/agent/v1/actions.proto\x1a\x19sm/agent/v1/metrics.proto\"+\n" +
 	"\x17RenewCertificateRequest\x12\x10\n" +
 	"\x03csr\x18\x01 \x01(\fR\x03csr\"G\n" +
 	"\x18RenewCertificateResponse\x12+\n" +
-	"\x11certificate_chain\x18\x01 \x03(\fR\x10certificateChain\"\xc4\x01\n" +
+	"\x11certificate_chain\x18\x01 \x03(\fR\x10certificateChain\"\xfb\x01\n" +
 	"\x0eConnectRequest\x12*\n" +
 	"\x05hello\x18\x01 \x01(\v2\x12.sm.agent.v1.HelloH\x00R\x05hello\x126\n" +
 	"\theartbeat\x18\x02 \x01(\v2\x16.sm.agent.v1.HeartbeatH\x00R\theartbeat\x12C\n" +
-	"\x0ecommand_result\x18\x03 \x01(\v2\x1a.sm.agent.v1.CommandResultH\x00R\rcommandResultB\t\n" +
+	"\x0ecommand_result\x18\x03 \x01(\v2\x1a.sm.agent.v1.CommandResultH\x00R\rcommandResult\x125\n" +
+	"\ametrics\x18\x04 \x01(\v2\x19.sm.agent.v1.MetricsBatchH\x00R\ametricsB\t\n" +
 	"\apayload\"\xc2\x01\n" +
 	"\x0fConnectResponse\x120\n" +
 	"\awelcome\x18\x01 \x01(\v2\x14.sm.agent.v1.WelcomeH\x00R\awelcome\x12@\n" +
@@ -716,32 +733,34 @@ var file_sm_agent_v1_agent_proto_goTypes = []any{
 	(*Welcome)(nil),                  // 7: sm.agent.v1.Welcome
 	(*HeartbeatAck)(nil),             // 8: sm.agent.v1.HeartbeatAck
 	(*CommandResult)(nil),            // 9: sm.agent.v1.CommandResult
-	(*Command)(nil),                  // 10: sm.agent.v1.Command
-	(*timestamppb.Timestamp)(nil),    // 11: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),      // 12: google.protobuf.Duration
+	(*MetricsBatch)(nil),             // 10: sm.agent.v1.MetricsBatch
+	(*Command)(nil),                  // 11: sm.agent.v1.Command
+	(*timestamppb.Timestamp)(nil),    // 12: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),      // 13: google.protobuf.Duration
 }
 var file_sm_agent_v1_agent_proto_depIdxs = []int32{
 	4,  // 0: sm.agent.v1.ConnectRequest.hello:type_name -> sm.agent.v1.Hello
 	6,  // 1: sm.agent.v1.ConnectRequest.heartbeat:type_name -> sm.agent.v1.Heartbeat
 	9,  // 2: sm.agent.v1.ConnectRequest.command_result:type_name -> sm.agent.v1.CommandResult
-	7,  // 3: sm.agent.v1.ConnectResponse.welcome:type_name -> sm.agent.v1.Welcome
-	8,  // 4: sm.agent.v1.ConnectResponse.heartbeat_ack:type_name -> sm.agent.v1.HeartbeatAck
-	10, // 5: sm.agent.v1.ConnectResponse.command:type_name -> sm.agent.v1.Command
-	5,  // 6: sm.agent.v1.Hello.host:type_name -> sm.agent.v1.HostFacts
-	11, // 7: sm.agent.v1.HostFacts.boot_time:type_name -> google.protobuf.Timestamp
-	11, // 8: sm.agent.v1.Heartbeat.sent_at:type_name -> google.protobuf.Timestamp
-	12, // 9: sm.agent.v1.Welcome.heartbeat_interval:type_name -> google.protobuf.Duration
-	11, // 10: sm.agent.v1.Welcome.server_time:type_name -> google.protobuf.Timestamp
-	11, // 11: sm.agent.v1.HeartbeatAck.server_time:type_name -> google.protobuf.Timestamp
-	2,  // 12: sm.agent.v1.AgentService.Connect:input_type -> sm.agent.v1.ConnectRequest
-	0,  // 13: sm.agent.v1.AgentService.RenewCertificate:input_type -> sm.agent.v1.RenewCertificateRequest
-	3,  // 14: sm.agent.v1.AgentService.Connect:output_type -> sm.agent.v1.ConnectResponse
-	1,  // 15: sm.agent.v1.AgentService.RenewCertificate:output_type -> sm.agent.v1.RenewCertificateResponse
-	14, // [14:16] is the sub-list for method output_type
-	12, // [12:14] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	10, // 3: sm.agent.v1.ConnectRequest.metrics:type_name -> sm.agent.v1.MetricsBatch
+	7,  // 4: sm.agent.v1.ConnectResponse.welcome:type_name -> sm.agent.v1.Welcome
+	8,  // 5: sm.agent.v1.ConnectResponse.heartbeat_ack:type_name -> sm.agent.v1.HeartbeatAck
+	11, // 6: sm.agent.v1.ConnectResponse.command:type_name -> sm.agent.v1.Command
+	5,  // 7: sm.agent.v1.Hello.host:type_name -> sm.agent.v1.HostFacts
+	12, // 8: sm.agent.v1.HostFacts.boot_time:type_name -> google.protobuf.Timestamp
+	12, // 9: sm.agent.v1.Heartbeat.sent_at:type_name -> google.protobuf.Timestamp
+	13, // 10: sm.agent.v1.Welcome.heartbeat_interval:type_name -> google.protobuf.Duration
+	12, // 11: sm.agent.v1.Welcome.server_time:type_name -> google.protobuf.Timestamp
+	12, // 12: sm.agent.v1.HeartbeatAck.server_time:type_name -> google.protobuf.Timestamp
+	2,  // 13: sm.agent.v1.AgentService.Connect:input_type -> sm.agent.v1.ConnectRequest
+	0,  // 14: sm.agent.v1.AgentService.RenewCertificate:input_type -> sm.agent.v1.RenewCertificateRequest
+	3,  // 15: sm.agent.v1.AgentService.Connect:output_type -> sm.agent.v1.ConnectResponse
+	1,  // 16: sm.agent.v1.AgentService.RenewCertificate:output_type -> sm.agent.v1.RenewCertificateResponse
+	15, // [15:17] is the sub-list for method output_type
+	13, // [13:15] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_sm_agent_v1_agent_proto_init() }
@@ -750,10 +769,12 @@ func file_sm_agent_v1_agent_proto_init() {
 		return
 	}
 	file_sm_agent_v1_actions_proto_init()
+	file_sm_agent_v1_metrics_proto_init()
 	file_sm_agent_v1_agent_proto_msgTypes[2].OneofWrappers = []any{
 		(*ConnectRequest_Hello)(nil),
 		(*ConnectRequest_Heartbeat)(nil),
 		(*ConnectRequest_CommandResult)(nil),
+		(*ConnectRequest_Metrics)(nil),
 	}
 	file_sm_agent_v1_agent_proto_msgTypes[3].OneofWrappers = []any{
 		(*ConnectResponse_Welcome)(nil),

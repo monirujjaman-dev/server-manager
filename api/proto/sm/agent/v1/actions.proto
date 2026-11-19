@@ -42,6 +42,8 @@ message ActionRequest {
     ServiceControlRequest service_control = 3;
     ProcessListRequest process_list = 4;
     ProcessSignalRequest process_signal = 5;
+    LogQueryRequest log_query = 6;
+    AuthLogRequest auth_log = 7;
   }
 }
 
@@ -71,6 +73,8 @@ message ActionResult {
     ServiceControlResult service_control = 3;
     ProcessListResult process_list = 4;
     ProcessSignalResult process_signal = 5;
+    LogQueryResult log_query = 6;
+    AuthLogResult auth_log = 7;
   }
 }
 
@@ -208,6 +212,75 @@ message ProcessSignalRequest {
 }
 
 message ProcessSignalResult {}
+
+// ---------------------------------------------------------------------------
+// logs.query and logs.auth (read; journald)
+// ---------------------------------------------------------------------------
+
+message LogQueryRequest {
+  // Optional systemd unit, e.g. "nginx.service".
+  string unit = 1;
+  // Only entries newer than this many seconds; 0 means 1 hour. Ignored with after_cursor.
+  uint32 since_seconds = 2;
+  // Maximum entries, newest last; 0 means 100. Capped at 500.
+  uint32 limit = 3;
+  // Optional case-insensitive substring filter on the message.
+  string grep = 4;
+  // Only entries at this priority or more severe: 0 emerg ... 7 debug. Unset means all.
+  optional uint32 max_priority = 5;
+  // Continue after this journal cursor (from a previous result) to follow new entries.
+  string after_cursor = 6;
+}
+
+message LogQueryResult {
+  repeated LogEntry entries = 1;
+  // Cursor of the last entry; pass it as after_cursor to get newer entries.
+  string cursor = 2;
+}
+
+message LogEntry {
+  google.protobuf.Timestamp time = 1;
+  // syslog priority, 0 (emerg) to 7 (debug).
+  uint32 priority = 2;
+  string unit = 3;
+  string identifier = 4;
+  int32 pid = 5;
+  // Truncated to 1024 bytes.
+  string message = 6;
+}
+
+message AuthLogRequest {
+  // 0 means 24 hours.
+  uint32 since_seconds = 1;
+  // 0 means 100. Capped at 500.
+  uint32 limit = 2;
+}
+
+message AuthLogResult {
+  repeated AuthEvent events = 1;
+}
+
+enum AuthEventKind {
+  AUTH_EVENT_KIND_UNSPECIFIED = 0;
+  AUTH_EVENT_KIND_SSH_ACCEPTED = 1;
+  AUTH_EVENT_KIND_SSH_FAILED = 2;
+  AUTH_EVENT_KIND_SSH_INVALID_USER = 3;
+  AUTH_EVENT_KIND_SUDO = 4;
+  AUTH_EVENT_KIND_SUDO_FAILED = 5;
+}
+
+message AuthEvent {
+  google.protobuf.Timestamp time = 1;
+  AuthEventKind kind = 2;
+  string user = 3;
+  string source_ip = 4;
+  // SSH: "publickey", "password", ...
+  string method = 5;
+  // sudo: target user and command.
+  string target_user = 6;
+  string command = 7;
+  string message = 8;
+}
 
 // ---------------------------------------------------------------------------
 // Privileged helper (sm-agent privd), served on a local UNIX socket only.

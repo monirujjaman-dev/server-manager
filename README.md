@@ -41,6 +41,6 @@ See the [development guide](docs/DEVELOPMENT.md) for the database, tests and VMs
 - **Phase 0 (foundations):** done.
 - **Phase 1 (MVP):** in progress. Done: token enrollment, certificate renewal,
   database-backed revocation, hash-chained audit log, signed command dispatch, the
-  privileged helper, and the system/services/processes actions. Next: metrics and
-  dashboard, logs, user authentication and RBAC, packaging.
-  See the [development plan](docs/DEVELOPMENT_PLAN.md).
+  privileged helper, system/services/processes actions, metrics with a fleet dashboard,
+  and journal/SSH/sudo logs. Next: user authentication and RBAC (moving the commands to
+  `smctl`), packaging and VM tests. See the [development plan](docs/DEVELOPMENT_PLAN.md).
