@@ -89,6 +89,49 @@ func (q *Queries) GetServer(ctx context.Context, id uuid.UUID) (Server, error) {
 	return i, err
 }
 
+const getServerByName = `-- name: GetServerByName :one
+SELECT id, name, group_id, hostname, os, arch, kernel, distro, distro_version, agent_version, labels, status, last_seen_at, created_at, updated_at FROM servers WHERE name = $1
+`
+
+func (q *Queries) GetServerByName(ctx context.Context, name string) (Server, error) {
+	row := q.db.QueryRow(ctx, getServerByName, name)
+	var i Server
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.GroupID,
+		&i.Hostname,
+		&i.OS,
+		&i.Arch,
+		&i.Kernel,
+		&i.Distro,
+		&i.DistroVersion,
+		&i.AgentVersion,
+		&i.Labels,
+		&i.Status,
+		&i.LastSeenAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getServerGroupByName = `-- name: GetServerGroupByName :one
+SELECT id, name, settings, created_at FROM server_groups WHERE name = $1
+`
+
+func (q *Queries) GetServerGroupByName(ctx context.Context, name string) (ServerGroup, error) {
+	row := q.db.QueryRow(ctx, getServerGroupByName, name)
+	var i ServerGroup
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Settings,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const listServerGroups = `-- name: ListServerGroups :many
 SELECT id, name, settings, created_at FROM server_groups ORDER BY name
 `
@@ -158,13 +201,52 @@ func (q *Queries) ListServers(ctx context.Context) ([]Server, error) {
 	return items, nil
 }
 
-const markServerSeen = `-- name: MarkServerSeen :exec
+const markOnlineServersOffline = `-- name: MarkOnlineServersOffline :execrows
+UPDATE servers SET status = 'offline', updated_at = now() WHERE status = 'online'
+`
+
+// Run at control-plane start: sessions from a previous process no longer exist.
+func (q *Queries) MarkOnlineServersOffline(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, markOnlineServersOffline)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const markServerSeen = `-- name: MarkServerSeen :execrows
 UPDATE servers SET last_seen_at = now(), status = 'online'
 WHERE id = $1 AND status <> 'revoked'
 `
 
-func (q *Queries) MarkServerSeen(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, markServerSeen, id)
+func (q *Queries) MarkServerSeen(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, markServerSeen, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const revokeServer = `-- name: RevokeServer :execrows
+UPDATE servers SET status = 'revoked', updated_at = now()
+WHERE id = $1 AND status <> 'revoked'
+`
+
+func (q *Queries) RevokeServer(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, revokeServer, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setServerOffline = `-- name: SetServerOffline :exec
+UPDATE servers SET status = 'offline', updated_at = now()
+WHERE id = $1 AND status = 'online'
+`
+
+func (q *Queries) SetServerOffline(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, setServerOffline, id)
 	return err
 }
 
@@ -182,7 +264,7 @@ func (q *Queries) SetServerStatus(ctx context.Context, arg SetServerStatusParams
 	return err
 }
 
-const updateServerFacts = `-- name: UpdateServerFacts :exec
+const updateServerFacts = `-- name: UpdateServerFacts :execrows
 UPDATE servers SET
     hostname       = $2,
     os             = $3,
@@ -208,8 +290,8 @@ type UpdateServerFactsParams struct {
 	AgentVersion  string
 }
 
-func (q *Queries) UpdateServerFacts(ctx context.Context, arg UpdateServerFactsParams) error {
-	_, err := q.db.Exec(ctx, updateServerFacts,
+func (q *Queries) UpdateServerFacts(ctx context.Context, arg UpdateServerFactsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateServerFacts,
 		arg.ID,
 		arg.Hostname,
 		arg.OS,
@@ -219,5 +301,8 @@ func (q *Queries) UpdateServerFacts(ctx context.Context, arg UpdateServerFactsPa
 		arg.DistroVersion,
 		arg.AgentVersion,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

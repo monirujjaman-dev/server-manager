@@ -40,6 +40,12 @@ type Config struct {
 	// Reconnect back-off bounds.
 	MinBackoff time.Duration `yaml:"min_backoff" env:"MIN_BACKOFF"`
 	MaxBackoff time.Duration `yaml:"max_backoff" env:"MAX_BACKOFF"`
+
+	// RenewBefore is the fraction of the certificate lifetime that may remain before the
+	// agent renews it (default 1/3: a 30-day certificate is renewed after 20 days).
+	RenewBefore float64 `yaml:"renew_before" env:"RENEW_BEFORE"`
+	// RenewCheckInterval is how often the certificate is checked (default 1h).
+	RenewCheckInterval time.Duration `yaml:"renew_check_interval" env:"RENEW_CHECK_INTERVAL"`
 }
 
 // DefaultConfig returns production defaults.
@@ -51,6 +57,9 @@ func DefaultConfig() Config {
 		Log:        logging.Config{Level: "info", Format: "json"},
 		MinBackoff: time.Second,
 		MaxBackoff: time.Minute,
+
+		RenewBefore:        1.0 / 3,
+		RenewCheckInterval: time.Hour,
 	}
 }
 
@@ -74,6 +83,12 @@ func (c Config) Validate() error {
 	if c.MinBackoff <= 0 || c.MaxBackoff < c.MinBackoff {
 		errs = append(errs, errors.New("min_backoff must be > 0 and <= max_backoff"))
 	}
+	if c.RenewBefore <= 0 || c.RenewBefore >= 1 {
+		errs = append(errs, errors.New("renew_before must be between 0 and 1"))
+	}
+	if c.RenewCheckInterval < time.Second {
+		errs = append(errs, errors.New("renew_check_interval must be at least 1s"))
+	}
 	return errors.Join(errs...)
 }
 
@@ -86,9 +101,14 @@ type Status struct {
 
 // Agent is a running agent.
 type Agent struct {
-	cfg    Config
-	log    *slog.Logger
-	client agentv1connect.AgentServiceClient
+	cfg       Config
+	log       *slog.Logger
+	client    agentv1connect.AgentServiceClient
+	transport *http.Transport
+	roots     *x509.CertPool
+	// renewed is signalled after a certificate renewal so the current stream is closed
+	// and the next connection presents the new certificate.
+	renewed chan struct{}
 
 	mu     sync.RWMutex
 	status Status
@@ -135,9 +155,12 @@ func New(cfg Config, log *slog.Logger) (*Agent, error) {
 	httpClient := &http.Client{Transport: transport} // no overall timeout: the stream is long-lived
 
 	return &Agent{
-		cfg:    cfg,
-		log:    log,
-		client: agentv1connect.NewAgentServiceClient(httpClient, cfg.ServerURL, connect.WithGRPC()),
+		cfg:       cfg,
+		log:       log,
+		client:    agentv1connect.NewAgentServiceClient(httpClient, cfg.ServerURL, connect.WithGRPC()),
+		transport: transport,
+		roots:     roots,
+		renewed:   make(chan struct{}, 1),
 	}, nil
 }
 
@@ -172,12 +195,20 @@ func (a *Agent) setStatus(fn func(*Status)) {
 
 // Run connects and reconnects until ctx is cancelled.
 func (a *Agent) Run(ctx context.Context) error {
+	go a.renewLoop(ctx)
 	attempt := 0
 	for {
 		welcomed, err := a.session(ctx)
 		a.setStatus(func(s *Status) { s.Connected = false })
+		// Drop pooled connections so the next attempt does a fresh TLS handshake (and
+		// presents a renewed certificate, if there is one).
+		a.transport.CloseIdleConnections()
 		if ctx.Err() != nil {
 			return nil //nolint:nilerr // cancellation is a normal shutdown, not a failure
+		}
+		if errors.Is(err, errRenewed) {
+			a.log.Info("reconnecting with renewed certificate")
+			continue
 		}
 		if welcomed {
 			attempt = 0
@@ -246,7 +277,7 @@ func (a *Agent) session(ctx context.Context) (welcomed bool, err error) {
 		a.log.Warn("clock skew against control plane", "skew", skew.Round(time.Second))
 	}
 	a.setStatus(func(s *Status) { s.Connected, s.ServerID = true, serverID })
-	a.log.Info("connected to control plane", "server_id", serverID.String(), "heartbeat_interval", interval)
+	a.log.Info("connected to control plane", "server_id", serverID.String(), "heartbeat_interval", interval.String())
 
 	recvErr := make(chan error, 1)
 	go func() {
@@ -269,6 +300,8 @@ func (a *Agent) session(ctx context.Context) (welcomed bool, err error) {
 		select {
 		case <-ctx.Done():
 			return true, context.Cause(ctx)
+		case <-a.renewed:
+			return true, errRenewed
 		case err := <-recvErr:
 			return true, err
 		case <-ticker.C:

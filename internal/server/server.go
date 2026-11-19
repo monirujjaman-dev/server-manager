@@ -19,18 +19,27 @@ import (
 	"github.com/monirujjaman-dev/server-manager/internal/pkg/logging"
 	"github.com/monirujjaman-dev/server-manager/internal/pki"
 	"github.com/monirujjaman-dev/server-manager/internal/server/api"
+	"github.com/monirujjaman-dev/server-manager/internal/server/enroll"
+	"github.com/monirujjaman-dev/server-manager/internal/server/fleet"
 	"github.com/monirujjaman-dev/server-manager/internal/server/gateway"
+	"github.com/monirujjaman-dev/server-manager/internal/server/store"
 )
 
 // Config is the sm-server configuration. Environment variables use the SM_ prefix,
 // e.g. SM_AGENT_LISTEN.
 type Config struct {
-	AgentListen       string         `yaml:"agent_listen" env:"AGENT_LISTEN"`
-	APIListen         string         `yaml:"api_listen" env:"API_LISTEN"`
-	PKIDir            string         `yaml:"pki_dir" env:"PKI_DIR"`
-	DatabaseURL       string         `yaml:"database_url" env:"DATABASE_URL"`
-	HeartbeatInterval time.Duration  `yaml:"heartbeat_interval" env:"HEARTBEAT_INTERVAL"`
-	Log               logging.Config `yaml:"log"`
+	AgentListen       string        `yaml:"agent_listen" env:"AGENT_LISTEN"`
+	APIListen         string        `yaml:"api_listen" env:"API_LISTEN"`
+	PKIDir            string        `yaml:"pki_dir" env:"PKI_DIR"`
+	DatabaseURL       string        `yaml:"database_url" env:"DATABASE_URL"`
+	HeartbeatInterval time.Duration `yaml:"heartbeat_interval" env:"HEARTBEAT_INTERVAL"`
+	// PublicAgentURL is how agents reach agent_listen, e.g. https://cp.internal:8443.
+	// It is sent to agents during enrollment.
+	PublicAgentURL string `yaml:"public_agent_url" env:"PUBLIC_AGENT_URL"`
+	// PublicAPIURL is how operators and enrolling agents reach api_listen. It is only
+	// used to print enrollment commands.
+	PublicAPIURL string         `yaml:"public_api_url" env:"PUBLIC_API_URL"`
+	Log          logging.Config `yaml:"log"`
 }
 
 // DefaultConfig returns production defaults.
@@ -59,8 +68,22 @@ func (c Config) Validate() error {
 	if c.HeartbeatInterval < time.Second || c.HeartbeatInterval > 5*time.Minute {
 		errs = append(errs, errors.New("heartbeat_interval must be between 1s and 5m"))
 	}
+	if c.DatabaseURL == "" {
+		errs = append(errs, errors.New("database_url is required"))
+	}
 	return errors.Join(errs...)
 }
+
+// Option adjusts a Server; used by tests.
+type Option func(*options)
+
+type options struct {
+	renewAfter float64
+}
+
+// WithRenewAfter sets the fraction of a certificate's lifetime after which agents may
+// renew it (default 0.5).
+func WithRenewAfter(f float64) Option { return func(o *options) { o.renewAfter = f } }
 
 // Server is a running control plane.
 type Server struct {
@@ -68,14 +91,21 @@ type Server struct {
 	log         *slog.Logger
 	ca          *pki.CA
 	serverCert  tls.Certificate
-	revocations *pki.RevocationList
+	st          *store.Store
+	revocations pki.RevocationChecker
+	enroll      *enroll.Service
 	gw          *gateway.Gateway
 }
 
-// New loads the PKI from cfg.PKIDir and prepares the services.
-func New(cfg Config, log *slog.Logger) (*Server, error) {
+// New loads the PKI from cfg.PKIDir, connects to the database and prepares the
+// services. Call Close when done.
+func New(ctx context.Context, cfg Config, log *slog.Logger, opts ...Option) (*Server, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
+	}
+	var o options
+	for _, opt := range opts {
+		opt(&o)
 	}
 	ca, err := pki.LoadCA(cfg.PKIDir)
 	if err != nil {
@@ -92,24 +122,48 @@ func New(cfg Config, log *slog.Logger) (*Server, error) {
 	if time.Now().After(certs[0].NotAfter) {
 		return nil, fmt.Errorf("server certificate expired on %s (run `sm-server pki issue-server`)", certs[0].NotAfter)
 	}
-	revocations := pki.NewRevocationList()
+	st, err := store.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return nil, err
+	}
+	// Sessions of a previous process no longer exist. This assumes a single control-plane
+	// replica; high availability (backlog) needs per-replica session ownership.
+	if n, err := st.MarkOnlineServersOffline(ctx); err != nil {
+		st.Close()
+		return nil, fmt.Errorf("reset server status: %w", err)
+	} else if n > 0 {
+		log.Info("marked servers offline after restart", "count", n)
+	}
+
+	revocations := fleet.Revocations{Q: st.Queries}
+	enrollSvc := enroll.NewService(st, ca, enroll.Options{
+		AgentURL:   cfg.PublicAgentURL,
+		Logger:     log.With("component", "enroll"),
+		RenewAfter: o.renewAfter,
+	})
 	return &Server{
 		cfg:         cfg,
 		log:         log,
 		ca:          ca,
 		serverCert:  ca.TLSCertificate(certs[0], key),
+		st:          st,
 		revocations: revocations,
+		enroll:      enrollSvc,
 		gw: gateway.New(gateway.Options{
 			Logger:            log.With("component", "gateway"),
+			Hooks:             fleet.Hooks{Q: st.Queries, Log: log.With("component", "fleet")},
 			Revocations:       revocations,
+			Renewer:           enrollSvc,
 			HeartbeatInterval: cfg.HeartbeatInterval,
 		}),
 	}, nil
 }
 
-// Revocations returns the in-memory certificate revocation list. Phase 1 replaces it
-// with a database-backed list.
-func (s *Server) Revocations() *pki.RevocationList { return s.revocations }
+// Close releases the database connections.
+func (s *Server) Close() { s.st.Close() }
+
+// Store returns the database store.
+func (s *Server) Store() *store.Store { return s.st }
 
 // Gateway returns the agent gateway.
 func (s *Server) Gateway() *gateway.Gateway { return s.gw }
@@ -183,6 +237,7 @@ func (s *Server) agentHTTPServer() *http.Server {
 func (s *Server) apiHTTPServer() *http.Server {
 	mux := http.NewServeMux()
 	mux.Handle(operatorv1connect.NewHealthServiceHandler(&api.Health{}, connect.WithReadMaxBytes(64<<10)))
+	mux.Handle(s.enroll.Handler())
 
 	protocols := new(http.Protocols)
 	protocols.SetHTTP1(true)

@@ -3,6 +3,7 @@ package gateway
 
 import (
 	"context"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io"
@@ -33,6 +34,20 @@ var (
 	ErrShutdown = errors.New("control plane shutting down")
 )
 
+// ErrAgentRevoked is returned by Hooks when the server has been revoked or is unknown.
+// The gateway then closes the stream. Other hook errors (for example a database outage)
+// are logged and the stream stays open, so a short outage does not drop the fleet.
+var ErrAgentRevoked = errors.New("server revoked or unknown")
+
+var errCertExpired = errors.New("agent certificate expired")
+
+// CertRenewer issues renewed agent certificates.
+type CertRenewer interface {
+	// RenewAgentCertificate returns the DER chain (leaf, intermediate) of a new
+	// certificate for id. Errors should be *connect.Error values.
+	RenewAgentCertificate(ctx context.Context, id uuid.UUID, current *x509.Certificate, csr []byte) ([][]byte, error)
+}
+
 // Hooks lets the control plane persist agent state. All methods are optional to
 // implement through NopHooks; an error from OnHello rejects the connection.
 type Hooks interface {
@@ -56,6 +71,7 @@ type Options struct {
 	// reuses connections, so a revoked agent could otherwise open new streams on a
 	// connection established before the revocation.
 	Revocations       pki.RevocationChecker
+	Renewer           CertRenewer
 	HeartbeatInterval time.Duration // default 15s
 	HelloTimeout      time.Duration // default 10s
 	// MissedHeartbeats is how many intervals may pass without a heartbeat before the
@@ -106,6 +122,11 @@ func (g *Gateway) Handler() (string, http.Handler) {
 
 type ctxKey struct{}
 
+type identity struct {
+	id   uuid.UUID
+	cert *x509.Certificate
+}
+
 // requireAgentIdentity extracts the server ID from the verified client certificate and
 // re-checks revocation for every request. The TLS layer already rejects bad
 // certificates at handshake time; this is a second, independent check.
@@ -121,29 +142,54 @@ func (g *Gateway) requireAgentIdentity(next http.Handler) http.Handler {
 			http.Error(w, "invalid agent certificate", http.StatusUnauthorized)
 			return
 		}
+		// HTTP/2 connections outlive the handshake that verified the certificate, so
+		// expiry is checked per request too.
+		if time.Now().After(leaf.NotAfter) {
+			http.Error(w, "agent certificate expired", http.StatusUnauthorized)
+			return
+		}
 		if g.opts.Revocations != nil {
-			revoked, err := g.opts.Revocations.IsRevoked(leaf.SerialNumber)
+			revoked, err := g.opts.Revocations.IsRevoked(r.Context(), leaf.SerialNumber)
 			if err != nil || revoked {
 				g.log.Warn("rejected agent request", "server_id", id.String(), "revoked", revoked, "err", err)
 				http.Error(w, "agent certificate not accepted", http.StatusUnauthorized)
 				return
 			}
 		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, id)))
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, identity{id: id, cert: leaf})))
 	})
 }
 
-func agentIDFrom(ctx context.Context) (uuid.UUID, bool) {
-	id, ok := ctx.Value(ctxKey{}).(uuid.UUID)
+func identityFrom(ctx context.Context) (identity, bool) {
+	id, ok := ctx.Value(ctxKey{}).(identity)
 	return id, ok
+}
+
+// RenewCertificate issues a fresh certificate for the calling agent.
+func (g *Gateway) RenewCertificate(ctx context.Context, req *connect.Request[agentv1.RenewCertificateRequest]) (*connect.Response[agentv1.RenewCertificateResponse], error) {
+	who, ok := identityFrom(ctx)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("no agent identity"))
+	}
+	if g.opts.Renewer == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("certificate renewal is not enabled"))
+	}
+	chain, err := g.opts.Renewer.RenewAgentCertificate(ctx, who.id, who.cert, req.Msg.GetCsr())
+	if err != nil {
+		g.log.Warn("certificate renewal failed", "server_id", who.id.String(), "err", err)
+		return nil, err
+	}
+	g.log.Info("certificate renewed", "server_id", who.id.String())
+	return connect.NewResponse(&agentv1.RenewCertificateResponse{CertificateChain: chain}), nil
 }
 
 // Connect handles one agent stream.
 func (g *Gateway) Connect(ctx context.Context, stream *connect.BidiStream[agentv1.ConnectRequest, agentv1.ConnectResponse]) error {
-	id, ok := agentIDFrom(ctx)
+	who, ok := identityFrom(ctx)
 	if !ok {
 		return connect.NewError(connect.CodeUnauthenticated, errors.New("no agent identity"))
 	}
+	id := who.id
 	log := g.log.With("server_id", id.String(), "remote", stream.Peer().Addr)
 
 	ctx, cancel := context.WithCancelCause(ctx)
@@ -206,6 +252,12 @@ func (g *Gateway) Connect(ctx context.Context, stream *connect.BidiStream[agentv
 		return err
 	}
 
+	// End the stream when the certificate that authenticated it expires.
+	if who.cert != nil {
+		expiry := time.AfterFunc(time.Until(who.cert.NotAfter), func() { cancel(errCertExpired) })
+		defer expiry.Stop()
+	}
+
 	idleLimit := g.opts.HeartbeatInterval * time.Duration(g.opts.MissedHeartbeats)
 	idle := time.NewTimer(idleLimit)
 	defer idle.Stop()
@@ -224,7 +276,10 @@ func (g *Gateway) Connect(ctx context.Context, stream *connect.BidiStream[agentv
 				t := g.now()
 				g.reg.touch(sess, t)
 				idle.Reset(idleLimit)
-				if err := g.hooks.OnHeartbeat(ctx, id); err != nil {
+				if err := g.hooks.OnHeartbeat(ctx, id); errors.Is(err, ErrAgentRevoked) {
+					cancel(err)
+					return connect.NewError(connect.CodePermissionDenied, err)
+				} else if err != nil {
 					log.Warn("heartbeat hook failed", "err", err)
 				}
 				if err := stream.Send(&agentv1.ConnectResponse{Payload: &agentv1.ConnectResponse_HeartbeatAck{
@@ -250,6 +305,9 @@ func (g *Gateway) Connect(ctx context.Context, stream *connect.BidiStream[agentv
 			if errors.Is(cause, ErrReplaced) || errors.Is(cause, ErrShutdown) {
 				return connect.NewError(connect.CodeAborted, cause)
 			}
+			if errors.Is(cause, errCertExpired) {
+				return connect.NewError(connect.CodeUnauthenticated, cause)
+			}
 			return connect.NewError(connect.CodeCanceled, cause)
 		}
 	}
@@ -264,7 +322,7 @@ func (g *Gateway) awaitHello(ctx context.Context, msgs <-chan *agentv1.ConnectRe
 		if hello == nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("first message must be hello"))
 		}
-		if err := validateHello(hello); err != nil {
+		if err := ValidateHello(hello); err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
 		}
 		return hello, nil
@@ -277,23 +335,35 @@ func (g *Gateway) awaitHello(ctx context.Context, msgs <-chan *agentv1.ConnectRe
 	}
 }
 
-func validateHello(h *agentv1.Hello) error {
+// ValidateHello bounds the free-text fields an agent reports.
+func ValidateHello(h *agentv1.Hello) error {
+	if h.GetAgentVersion() == "" {
+		return errors.New("agent_version is required")
+	}
+	return validateFields(map[string]string{"agent_version": h.GetAgentVersion()}, h.GetHost())
+}
+
+// ValidateHostFacts bounds the free-text fields of host facts.
+func ValidateHostFacts(f *agentv1.HostFacts) error {
+	return validateFields(nil, f)
+}
+
+func validateFields(extra map[string]string, f *agentv1.HostFacts) error {
 	fields := map[string]string{
-		"agent_version":  h.GetAgentVersion(),
-		"hostname":       h.GetHost().GetHostname(),
-		"os":             h.GetHost().GetOs(),
-		"arch":           h.GetHost().GetArch(),
-		"kernel":         h.GetHost().GetKernel(),
-		"distro":         h.GetHost().GetDistro(),
-		"distro_version": h.GetHost().GetDistroVersion(),
+		"hostname":       f.GetHostname(),
+		"os":             f.GetOs(),
+		"arch":           f.GetArch(),
+		"kernel":         f.GetKernel(),
+		"distro":         f.GetDistro(),
+		"distro_version": f.GetDistroVersion(),
+	}
+	for k, v := range extra {
+		fields[k] = v
 	}
 	for name, v := range fields {
 		if len(v) > maxFieldLen {
 			return fmt.Errorf("%s longer than %d bytes", name, maxFieldLen)
 		}
-	}
-	if h.GetAgentVersion() == "" {
-		return errors.New("agent_version is required")
 	}
 	return nil
 }

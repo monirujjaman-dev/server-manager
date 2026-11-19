@@ -26,6 +26,13 @@ type env struct {
 
 func newEnv(t *testing.T, opts Options) *env {
 	t.Helper()
+	return newEnvWithAgentLifetime(t, opts, 0)
+}
+
+// newEnvWithAgentLifetime issues the agent certificate so that it expires after
+// lifetime (0 = normal validity).
+func newEnvWithAgentLifetime(t *testing.T, opts Options, lifetime time.Duration) *env {
+	t.Helper()
 	ca, err := pki.CreateCA("Test")
 	if err != nil {
 		t.Fatal(err)
@@ -36,7 +43,11 @@ func newEnv(t *testing.T, opts Options) *env {
 	}
 	key, csr, _ := pki.NewAgentKey()
 	id := uuid.New()
+	if lifetime > 0 {
+		ca.Now = func() time.Time { return time.Now().Add(lifetime - pki.AgentCertValidity) }
+	}
 	agentCert, err := ca.SignAgentCSR(csr, id)
+	ca.Now = nil
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,3 +218,40 @@ type rejectHooks struct{ NopHooks }
 func (rejectHooks) OnHello(context.Context, uuid.UUID, *agentv1.Hello) error {
 	return errors.New("server is revoked")
 }
+
+func TestStreamEndsWhenCertificateExpires(t *testing.T) {
+	e := newEnvWithAgentLifetime(t, Options{}, 1500*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	s := e.connectAndWelcome(t, ctx)
+	start := time.Now()
+	if code := drainCode(s); code != connect.CodeUnauthenticated {
+		t.Fatalf("code = %v", code)
+	}
+	if d := time.Since(start); d > 3*time.Second {
+		t.Fatalf("stream ended after %v, want about 1.5s", d)
+	}
+}
+
+func TestRenewWithoutRenewerIsUnimplemented(t *testing.T) {
+	e := newEnv(t, Options{})
+	_, err := e.client.RenewCertificate(context.Background(), connect.NewRequest(&agentv1.RenewCertificateRequest{}))
+	if connect.CodeOf(err) != connect.CodeUnimplemented {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestRevokedDuringHeartbeatClosesStream(t *testing.T) {
+	e := newEnv(t, Options{Hooks: revokeOnHeartbeat{}})
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	s := e.connectAndWelcome(t, ctx)
+	_ = s.Send(heartbeat(1))
+	if code := drainCode(s); code != connect.CodePermissionDenied {
+		t.Fatalf("code = %v", code)
+	}
+}
+
+type revokeOnHeartbeat struct{ NopHooks }
+
+func (revokeOnHeartbeat) OnHeartbeat(context.Context, uuid.UUID) error { return ErrAgentRevoked }

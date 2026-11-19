@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -15,7 +14,6 @@ import (
 	"github.com/monirujjaman-dev/server-manager/internal/pkg/config"
 	"github.com/monirujjaman-dev/server-manager/internal/pkg/logging"
 	"github.com/monirujjaman-dev/server-manager/internal/pkg/version"
-	"github.com/monirujjaman-dev/server-manager/internal/pki"
 )
 
 const envPrefix = "SM_AGENT_"
@@ -63,36 +61,38 @@ func rootCmd() *cobra.Command {
 		},
 	})
 
-	var keyDir string
-	keygen := &cobra.Command{
-		Use:   "keygen",
-		Short: "Generate the agent key pair and a certificate request",
-		Long: `Generate an Ed25519 key (agent.key, mode 0600) and a certificate request (agent.csr).
-Only agent.csr is sent to the control plane; agent.key never leaves this server.`,
+	var eo agent.EnrollOptions
+	enroll := &cobra.Command{
+		Use:   "enroll",
+		Short: "Enroll this server with the control plane (run once, as root)",
+		Long: `Enroll this server using a one-time token from ` + "`sm-server enroll create-token`" + `.
+
+The agent key is generated here and never leaves this server. The control plane is
+authenticated by its public-key pin; after enrollment the agent verifies it with the CA
+certificate it receives. Writes agent.key, agent.crt, ca.crt and agent.yaml to --dir.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			if err := os.MkdirAll(keyDir, 0o700); err != nil {
-				return err
+			if eo.Token == "" {
+				eo.Token = os.Getenv(envPrefix + "ENROLL_TOKEN")
 			}
-			key, csr, err := pki.NewAgentKey()
+			res, err := agent.Enroll(cmd.Context(), eo)
 			if err != nil {
 				return err
 			}
-			keyPath := filepath.Join(keyDir, "agent.key")
-			if err := pki.WriteKeyFile(keyPath, key, false); err != nil {
-				return fmt.Errorf("write key (refusing to overwrite an existing key): %w", err)
-			}
-			csrPath := filepath.Join(keyDir, "agent.csr")
-			if err := pki.WriteCSRFile(csrPath, csr); err != nil {
-				return err
-			}
-			cmd.Printf("key: %s\ncertificate request: %s\n", keyPath, csrPath)
+			cmd.Printf("enrolled as %s (%s)\nagent gateway: %s\nconfiguration: %s\n\nStart the agent with:\n  sm-agent run --config %s\n",
+				res.ServerName, res.ServerID, res.AgentURL, res.ConfigPath, res.ConfigPath)
 			return nil
 		},
 	}
-	keygen.Flags().StringVar(&keyDir, "dir", "/etc/sm-agent", "directory for agent.key and agent.csr")
+	enroll.Flags().StringVar(&eo.APIURL, "server", "", "control-plane API URL, e.g. https://cp.internal:8444")
+	enroll.Flags().StringVar(&eo.Pin, "pin", "", "SHA-256 public-key pin of the control plane")
+	enroll.Flags().StringVar(&eo.Token, "token", "", "one-time enrollment token (or env SM_AGENT_ENROLL_TOKEN)")
+	enroll.Flags().StringVar(&eo.Dir, "dir", "/etc/sm-agent", "directory for the agent's key, certificates and config")
+	enroll.Flags().StringVar(&eo.AgentURL, "agent-url", "", "override the agent gateway URL returned by the control plane")
+	_ = enroll.MarkFlagRequired("server")
+	_ = enroll.MarkFlagRequired("pin")
 
-	root.AddCommand(keygen, &cobra.Command{
+	root.AddCommand(enroll, &cobra.Command{
 		Use:   "version",
 		Short: "Print version information",
 		Args:  cobra.NoArgs,

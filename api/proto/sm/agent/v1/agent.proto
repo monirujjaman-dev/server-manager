@@ -13,6 +13,21 @@ service AgentService {
   // control plane. The agent always dials out; the first message it sends must
   // be a Hello.
   rpc Connect(stream ConnectRequest) returns (stream ConnectResponse);
+
+  // RenewCertificate issues a new certificate for the calling agent's identity. The
+  // control plane only renews certificates that have used at least half of their
+  // lifetime.
+  rpc RenewCertificate(RenewCertificateRequest) returns (RenewCertificateResponse);
+}
+
+message RenewCertificateRequest {
+  // DER-encoded PKCS#10 certificate request. Only its public key is used.
+  bytes csr = 1;
+}
+
+message RenewCertificateResponse {
+  // DER certificates: the new agent certificate followed by the intermediate CA.
+  repeated bytes certificate_chain = 1;
 }
 
 // ConnectRequest is a message sent from the agent to the control plane.

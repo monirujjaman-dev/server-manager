@@ -11,3 +11,7 @@ SELECT * FROM audit_events
 WHERE id > sqlc.arg(after_id)
 ORDER BY id
 LIMIT sqlc.arg(max_rows);
+
+-- name: LockAuditChain :exec
+-- Serializes appends so every event chains to the true previous one.
+SELECT pg_advisory_xact_lock(7316590281);

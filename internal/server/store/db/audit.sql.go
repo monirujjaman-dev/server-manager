@@ -105,3 +105,13 @@ func (q *Queries) ListAuditEvents(ctx context.Context, arg ListAuditEventsParams
 	}
 	return items, nil
 }
+
+const lockAuditChain = `-- name: LockAuditChain :exec
+SELECT pg_advisory_xact_lock(7316590281)
+`
+
+// Serializes appends so every event chains to the true previous one.
+func (q *Queries) LockAuditChain(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, lockAuditChain)
+	return err
+}

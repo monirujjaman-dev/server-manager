@@ -35,6 +35,9 @@ const (
 const (
 	// AgentServiceConnectProcedure is the fully-qualified name of the AgentService's Connect RPC.
 	AgentServiceConnectProcedure = "/sm.agent.v1.AgentService/Connect"
+	// AgentServiceRenewCertificateProcedure is the fully-qualified name of the AgentService's
+	// RenewCertificate RPC.
+	AgentServiceRenewCertificateProcedure = "/sm.agent.v1.AgentService/RenewCertificate"
 )
 
 // AgentServiceClient is a client for the sm.agent.v1.AgentService service.
@@ -43,6 +46,10 @@ type AgentServiceClient interface {
 	// control plane. The agent always dials out; the first message it sends must
 	// be a Hello.
 	Connect(context.Context) *connect.BidiStreamForClient[v1.ConnectRequest, v1.ConnectResponse]
+	// RenewCertificate issues a new certificate for the calling agent's identity. The
+	// control plane only renews certificates that have used at least half of their
+	// lifetime.
+	RenewCertificate(context.Context, *connect.Request[v1.RenewCertificateRequest]) (*connect.Response[v1.RenewCertificateResponse], error)
 }
 
 // NewAgentServiceClient constructs a client for the sm.agent.v1.AgentService service. By default,
@@ -62,17 +69,29 @@ func NewAgentServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(agentServiceMethods.ByName("Connect")),
 			connect.WithClientOptions(opts...),
 		),
+		renewCertificate: connect.NewClient[v1.RenewCertificateRequest, v1.RenewCertificateResponse](
+			httpClient,
+			baseURL+AgentServiceRenewCertificateProcedure,
+			connect.WithSchema(agentServiceMethods.ByName("RenewCertificate")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // agentServiceClient implements AgentServiceClient.
 type agentServiceClient struct {
-	connect *connect.Client[v1.ConnectRequest, v1.ConnectResponse]
+	connect          *connect.Client[v1.ConnectRequest, v1.ConnectResponse]
+	renewCertificate *connect.Client[v1.RenewCertificateRequest, v1.RenewCertificateResponse]
 }
 
 // Connect calls sm.agent.v1.AgentService.Connect.
 func (c *agentServiceClient) Connect(ctx context.Context) *connect.BidiStreamForClient[v1.ConnectRequest, v1.ConnectResponse] {
 	return c.connect.CallBidiStream(ctx)
+}
+
+// RenewCertificate calls sm.agent.v1.AgentService.RenewCertificate.
+func (c *agentServiceClient) RenewCertificate(ctx context.Context, req *connect.Request[v1.RenewCertificateRequest]) (*connect.Response[v1.RenewCertificateResponse], error) {
+	return c.renewCertificate.CallUnary(ctx, req)
 }
 
 // AgentServiceHandler is an implementation of the sm.agent.v1.AgentService service.
@@ -81,6 +100,10 @@ type AgentServiceHandler interface {
 	// control plane. The agent always dials out; the first message it sends must
 	// be a Hello.
 	Connect(context.Context, *connect.BidiStream[v1.ConnectRequest, v1.ConnectResponse]) error
+	// RenewCertificate issues a new certificate for the calling agent's identity. The
+	// control plane only renews certificates that have used at least half of their
+	// lifetime.
+	RenewCertificate(context.Context, *connect.Request[v1.RenewCertificateRequest]) (*connect.Response[v1.RenewCertificateResponse], error)
 }
 
 // NewAgentServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -96,10 +119,18 @@ func NewAgentServiceHandler(svc AgentServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(agentServiceMethods.ByName("Connect")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentServiceRenewCertificateHandler := connect.NewUnaryHandler(
+		AgentServiceRenewCertificateProcedure,
+		svc.RenewCertificate,
+		connect.WithSchema(agentServiceMethods.ByName("RenewCertificate")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/sm.agent.v1.AgentService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AgentServiceConnectProcedure:
 			agentServiceConnectHandler.ServeHTTP(w, r)
+		case AgentServiceRenewCertificateProcedure:
+			agentServiceRenewCertificateHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -111,4 +142,8 @@ type UnimplementedAgentServiceHandler struct{}
 
 func (UnimplementedAgentServiceHandler) Connect(context.Context, *connect.BidiStream[v1.ConnectRequest, v1.ConnectResponse]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("sm.agent.v1.AgentService.Connect is not implemented"))
+}
+
+func (UnimplementedAgentServiceHandler) RenewCertificate(context.Context, *connect.Request[v1.RenewCertificateRequest]) (*connect.Response[v1.RenewCertificateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("sm.agent.v1.AgentService.RenewCertificate is not implemented"))
 }

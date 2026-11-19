@@ -34,15 +34,31 @@ changing anything under `api/proto/`, `internal/server/store/migrations/` or
 ```bash
 make dev-up           # PostgreSQL on 127.0.0.1:5432, VictoriaMetrics on 127.0.0.1:8428
 make dev-migrate      # apply database migrations
-make dev-pki          # CA, server certificate and one enrolled agent in ./.dev
+make dev-pki          # CA and server certificate in ./.dev/pki
 make dev-server       # terminal 1
+make dev-enroll       # terminal 2: token + `sm-agent enroll` into ./.dev/agent
 make dev-agent        # terminal 2
+bin/sm-server servers list --config deploy/dev/sm-server.yaml
 bin/smctl health --server https://127.0.0.1:8444 --ca-file .dev/pki/root.crt
 ```
 
-`make dev-pki` follows the real enrollment flow: `sm-agent keygen` creates the agent's
-private key and a CSR, and `sm-server pki sign-agent` signs only the CSR. The agent's
-private key never leaves the agent directory.
+`make dev-enroll` runs the real enrollment flow: `sm-server enroll create-token` prints a
+one-time token and the control plane's public-key pin, and `sm-agent enroll` generates
+the agent key locally, enrolls, and writes `agent.yaml` next to the key and certificates.
+Run it with `NAME=dev-2` to enroll a second agent into another directory by setting
+`DEV_DIR` as well.
+
+Admin commands on the control-plane host (they use the database directly until the
+operator API gets user authentication):
+
+```bash
+sm-server groups create production
+sm-server enroll create-token --name web-1 --group production
+sm-server servers list
+sm-server servers revoke web-1 --reason "decommissioned"
+sm-server audit list
+sm-server audit verify
+```
 
 Configuration is read from YAML (`--config`) and can be overridden by environment
 variables: `SM_` + key for `sm-server` (e.g. `SM_API_LISTEN`), `SM_AGENT_` + key for
@@ -50,10 +66,12 @@ variables: `SM_` + key for `sm-server` (e.g. `SM_API_LISTEN`), `SM_AGENT_` + key
 
 ## Database tests
 
-Store tests need a disposable PostgreSQL database; they drop and recreate the schema.
+Database-backed tests create their own throw-away database for each test (and drop it
+afterwards), so packages run in parallel safely. They need an admin URL for a server
+where that user may create databases:
 
 ```bash
-SM_TEST_DATABASE_URL='postgres://sm:sm-dev-only@127.0.0.1:5432/sm_test?sslmode=disable' make test
+SM_TEST_DATABASE_URL='postgres://sm:sm-dev-only@127.0.0.1:5432/sm?sslmode=disable' make test
 ```
 
 Without `SM_TEST_DATABASE_URL` those tests are skipped. CI always runs them.

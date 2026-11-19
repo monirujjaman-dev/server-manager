@@ -61,10 +61,11 @@ func rootCmd() *cobra.Command {
 				return err
 			}
 			log.Info("starting", "version", version.Get().Version)
-			srv, err := server.New(cfg, log)
+			srv, err := server.New(cmd.Context(), cfg, log)
 			if err != nil {
 				return err
 			}
+			defer srv.Close()
 			return srv.Run(cmd.Context())
 		},
 	})
@@ -74,6 +75,6 @@ func rootCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		Run:   func(cmd *cobra.Command, _ []string) { cmd.Println(version.String("sm-server")) },
 	})
-	root.AddCommand(migrateCmd(loadConfig), pkiCmd(loadConfig))
+	root.AddCommand(migrateCmd(loadConfig), pkiCmd(loadConfig), enrollCmd(loadConfig), serversCmd(loadConfig), groupsCmd(loadConfig), auditCmd(loadConfig))
 	return root
 }

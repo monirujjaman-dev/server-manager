@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"log/slog"
-	"math/big"
 	"net"
 	"net/http"
 	"os"
@@ -13,77 +12,99 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 
 	operatorv1 "github.com/monirujjaman-dev/server-manager/gen/sm/operator/v1"
 	"github.com/monirujjaman-dev/server-manager/gen/sm/operator/v1/operatorv1connect"
 	"github.com/monirujjaman-dev/server-manager/internal/agent"
+	"github.com/monirujjaman-dev/server-manager/internal/pkg/config"
 	"github.com/monirujjaman-dev/server-manager/internal/pki"
 	"github.com/monirujjaman-dev/server-manager/internal/server"
+	"github.com/monirujjaman-dev/server-manager/internal/server/audit"
+	"github.com/monirujjaman-dev/server-manager/internal/server/enroll"
+	"github.com/monirujjaman-dev/server-manager/internal/server/fleet"
+	"github.com/monirujjaman-dev/server-manager/internal/server/store/storetest"
 )
 
-type fixture struct {
-	ca          *pki.CA
-	pkiDir      string
-	agentDir    string
-	agentID     uuid.UUID
-	agentSerial *big.Int
+type controlPlane struct {
+	srv     *server.Server
+	ca      *pki.CA
+	pin     string
+	agentLn net.Listener
+	apiLn   net.Listener
+	stop    func()
 }
 
-// setupPKI creates a CA, a server certificate for 127.0.0.1 and one enrolled agent,
-// following the real flow: the agent generates its own key and only a CSR is signed.
-func setupPKI(t *testing.T) *fixture {
+// startControlPlane creates a PKI and a fresh database and serves on loopback.
+func startControlPlane(t *testing.T, opts ...server.Option) *controlPlane {
 	t.Helper()
-	dir := t.TempDir()
-	f := &fixture{pkiDir: filepath.Join(dir, "pki"), agentDir: filepath.Join(dir, "agent"), agentID: uuid.New()}
-
+	dbURL := storetest.NewDatabase(t)
+	pkiDir := filepath.Join(t.TempDir(), "pki")
 	ca, err := pki.CreateCA("Test")
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.ca = ca
-	if err := pki.SaveCA(f.pkiDir, ca); err != nil {
+	if err := pki.SaveCA(pkiDir, ca); err != nil {
 		t.Fatal(err)
 	}
 	srvCert, srvKey, err := ca.IssueServerCert([]string{"localhost"}, []net.IP{net.IPv4(127, 0, 0, 1)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := pki.SaveServerCert(f.pkiDir, ca, srvCert, srvKey); err != nil {
+	if err := pki.SaveServerCert(pkiDir, ca, srvCert, srvKey); err != nil {
 		t.Fatal(err)
 	}
-	return f
+
+	agentLn, _ := net.Listen("tcp", "127.0.0.1:0")
+	apiLn, _ := net.Listen("tcp", "127.0.0.1:0")
+	cfg := server.DefaultConfig()
+	cfg.PKIDir = pkiDir
+	cfg.DatabaseURL = dbURL
+	cfg.HeartbeatInterval = time.Second
+	cfg.PublicAgentURL = "https://" + agentLn.Addr().String()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	srv, err := server.New(ctx, cfg, slog.New(slog.DiscardHandler), opts...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	served := make(chan error, 1)
+	go func() { served <- srv.Serve(ctx, agentLn, apiLn) }()
+	cp := &controlPlane{srv: srv, ca: ca, pin: pki.SPKIFingerprint(srvCert), agentLn: agentLn, apiLn: apiLn}
+	cp.stop = func() {
+		cancel()
+		select {
+		case err := <-served:
+			if err != nil {
+				t.Errorf("serve: %v", err)
+			}
+		case <-time.After(15 * time.Second):
+			t.Error("server did not shut down")
+		}
+		srv.Close()
+	}
+	return cp
 }
 
-func (f *fixture) enrollAgent(t *testing.T) agent.Config {
+// enrollAgent runs the real enrollment flow and returns the agent configuration.
+func (cp *controlPlane) enrollAgent(t *testing.T, name string) (agent.Config, agent.EnrollResult) {
 	t.Helper()
-	key, csr, err := pki.NewAgentKey()
+	tok, err := enroll.CreateToken(context.Background(), cp.srv.Store(), enroll.TokenRequest{ServerName: name, Actor: "test"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	cert, err := f.ca.SignAgentCSR(csr, f.agentID)
+	dir := filepath.Join(t.TempDir(), "agent")
+	res, err := agent.Enroll(context.Background(), agent.EnrollOptions{
+		APIURL: "https://" + cp.apiLn.Addr().String(), Token: tok.Value, Pin: cp.pin, Dir: dir,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.agentSerial = cert.SerialNumber
 	cfg := agent.DefaultConfig()
-	cfg.CAFile = filepath.Join(f.agentDir, "ca.crt")
-	cfg.CertFile = filepath.Join(f.agentDir, "agent.crt")
-	cfg.KeyFile = filepath.Join(f.agentDir, "agent.key")
+	if err := config.Load(res.ConfigPath, "SM_AGENT_TEST_UNUSED_", &cfg); err != nil {
+		t.Fatal(err)
+	}
 	cfg.MinBackoff, cfg.MaxBackoff = 50*time.Millisecond, 200*time.Millisecond
-	if err := os.MkdirAll(f.agentDir, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	if err := pki.WriteKeyFile(cfg.KeyFile, key, false); err != nil {
-		t.Fatal(err)
-	}
-	if err := pki.WriteCertFile(cfg.CertFile, cert, f.ca.Intermediate); err != nil {
-		t.Fatal(err)
-	}
-	if err := pki.WriteCertFile(cfg.CAFile, f.ca.Root); err != nil {
-		t.Fatal(err)
-	}
-	return cfg
+	return cfg, res
 }
 
 func waitFor(t *testing.T, what string, cond func() bool) {
@@ -98,97 +119,167 @@ func waitFor(t *testing.T, what string, cond func() bool) {
 	t.Fatalf("timed out waiting for %s", what)
 }
 
-func TestAgentConnectsOverMTLS(t *testing.T) {
-	f := setupPKI(t)
-	log := slog.New(slog.DiscardHandler)
-
-	cfg := server.DefaultConfig()
-	cfg.PKIDir = f.pkiDir
-	cfg.HeartbeatInterval = time.Second
-	srv, err := server.New(cfg, log)
+func runAgent(t *testing.T, cfg agent.Config) (*agent.Agent, func()) {
+	t.Helper()
+	ag, err := agent.New(cfg, slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatal(err)
 	}
-	agentLn, _ := net.Listen("tcp", "127.0.0.1:0")
-	apiLn, _ := net.Listen("tcp", "127.0.0.1:0")
-
 	ctx, cancel := context.WithCancel(context.Background())
-	served := make(chan error, 1)
-	go func() { served <- srv.Serve(ctx, agentLn, apiLn) }()
-
-	acfg := f.enrollAgent(t)
-	acfg.ServerURL = "https://" + agentLn.Addr().String()
-	ag, err := agent.New(acfg, log)
-	if err != nil {
-		t.Fatal(err)
+	done := make(chan error, 1)
+	go func() { done <- ag.Run(ctx) }()
+	return ag, func() {
+		cancel()
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Errorf("agent run: %v", err)
+			}
+		case <-time.After(5 * time.Second):
+			t.Error("agent did not stop")
+		}
 	}
-	agentCtx, stopAgent := context.WithCancel(ctx)
-	agentDone := make(chan error, 1)
-	go func() { agentDone <- ag.Run(agentCtx) }()
+}
 
-	// Exit criterion: hello → welcome → heartbeats acknowledged over mTLS.
-	waitFor(t, "agent registered", func() bool { _, ok := srv.Gateway().Registry().Get(f.agentID); return ok })
+func TestEnrollConnectRevoke(t *testing.T) {
+	cp := startControlPlane(t)
+	defer cp.stop()
+	ctx := context.Background()
+
+	cfg, res := cp.enrollAgent(t, "web-1")
+	if fi, err := os.Stat(cfg.KeyFile); err != nil || fi.Mode().Perm() != 0o600 {
+		t.Fatalf("agent key mode %v, %v", fi.Mode().Perm(), err)
+	}
+	if cfg.ServerURL != "https://"+cp.agentLn.Addr().String() {
+		t.Fatalf("agent config server_url = %q", cfg.ServerURL)
+	}
+
+	ag, stopAgent := runAgent(t, cfg)
+	defer stopAgent()
+
 	waitFor(t, "heartbeat ack", func() bool { return !ag.Status().LastAck.IsZero() })
-	if got := ag.Status().ServerID; got != f.agentID {
-		t.Fatalf("agent learned server ID %v, want %v", got, f.agentID)
+	if got := ag.Status().ServerID; got != res.ServerID {
+		t.Fatalf("agent server ID %v, want %v", got, res.ServerID)
 	}
-	info, _ := srv.Gateway().Registry().Get(f.agentID)
-	if info.AgentVersion == "" || info.Hostname == "" || !info.LastSeen.After(info.ConnectedAt) {
-		t.Errorf("unexpected session info %+v", info)
+	row, err := cp.srv.Store().GetServer(ctx, res.ServerID)
+	if err != nil || row.Status != "online" || row.Hostname == "" || row.AgentVersion == "" || row.LastSeenAt == nil {
+		t.Fatalf("server row after connect: %+v, %v", row, err)
 	}
 
 	t.Run("health check on API listener", func(t *testing.T) {
-		pool := f.ca.RootPool()
 		hc := &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS13, RootCAs: pool},
+			TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS13, RootCAs: cp.ca.RootPool()},
 		}}
-		client := operatorv1connect.NewHealthServiceClient(hc, "https://"+apiLn.Addr().String())
+		client := operatorv1connect.NewHealthServiceClient(hc, "https://"+cp.apiLn.Addr().String())
 		resp, err := client.Check(ctx, connect.NewRequest(&operatorv1.CheckRequest{}))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if resp.Msg.GetStatus() != operatorv1.ServingStatus_SERVING_STATUS_SERVING {
-			t.Errorf("status = %v", resp.Msg.GetStatus())
+		if err != nil || resp.Msg.GetStatus() != operatorv1.ServingStatus_SERVING_STATUS_SERVING {
+			t.Fatalf("health: %v %v", resp, err)
 		}
 	})
 
 	t.Run("agent port rejects clients without certificate", func(t *testing.T) {
 		hc := &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS13, RootCAs: f.ca.RootPool()},
+			TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS13, RootCAs: cp.ca.RootPool()},
 		}}
-		resp, err := hc.Get("https://" + agentLn.Addr().String() + "/sm.agent.v1.AgentService/Connect")
+		resp, err := hc.Get("https://" + cp.agentLn.Addr().String() + "/sm.agent.v1.AgentService/Connect")
 		if err == nil {
 			_ = resp.Body.Close()
 			t.Fatalf("request without client certificate got HTTP %d", resp.StatusCode)
 		}
 	})
 
-	t.Run("revoked agent cannot reconnect", func(t *testing.T) {
-		srv.Revocations().Revoke(f.agentSerial)
-		srv.Gateway().Registry().Disconnect(f.agentID, context.Canceled)
-		waitFor(t, "agent disconnected", func() bool { return !ag.Status().Connected })
-		time.Sleep(time.Second) // several reconnect attempts at 50-200 ms back-off
-		if _, ok := srv.Gateway().Registry().Get(f.agentID); ok || ag.Status().Connected {
-			t.Fatal("revoked agent reconnected")
+	t.Run("certificate signed by the CA but not issued through enrollment is rejected", func(t *testing.T) {
+		rogue := cfg
+		dir := t.TempDir()
+		key, csr, _ := pki.NewAgentKey()
+		cert, err := cp.ca.SignAgentCSR(csr, res.ServerID) // same identity, never recorded
+		if err != nil {
+			t.Fatal(err)
+		}
+		rogue.KeyFile, rogue.CertFile = filepath.Join(dir, "k"), filepath.Join(dir, "c")
+		if err := pki.WriteKeyFile(rogue.KeyFile, key, false); err != nil {
+			t.Fatal(err)
+		}
+		if err := pki.WriteCertFile(rogue.CertFile, cert, cp.ca.Intermediate); err != nil {
+			t.Fatal(err)
+		}
+		rag, stopRogue := runAgent(t, rogue)
+		time.Sleep(time.Second)
+		connected := rag.Status().Connected
+		stopRogue()
+		if connected {
+			t.Fatal("unrecorded certificate was accepted")
 		}
 	})
 
-	stopAgent()
-	select {
-	case err := <-agentDone:
-		if err != nil {
-			t.Fatalf("agent run: %v", err)
+	t.Run("revoked server is disconnected and cannot reconnect", func(t *testing.T) {
+		if err := fleet.Revoke(ctx, cp.srv.Store(), res.ServerID, "test", "decommissioned"); err != nil {
+			t.Fatal(err)
 		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("agent did not stop")
+		waitFor(t, "agent disconnected", func() bool { return !ag.Status().Connected })
+		time.Sleep(time.Second) // several reconnect attempts at 50-200 ms back-off
+		if _, ok := cp.srv.Gateway().Registry().Get(res.ServerID); ok || ag.Status().Connected {
+			t.Fatal("revoked agent reconnected")
+		}
+		if row, _ := cp.srv.Store().GetServer(ctx, res.ServerID); row.Status != "revoked" {
+			t.Fatalf("status after revoke = %q", row.Status)
+		}
+	})
+
+	if n, err := audit.Verify(ctx, cp.srv.Store().Queries); err != nil || n < 3 {
+		t.Fatalf("audit verify = %d, %v", n, err)
 	}
-	cancel()
-	select {
-	case err := <-served:
-		if err != nil {
-			t.Fatalf("serve: %v", err)
-		}
-	case <-time.After(15 * time.Second):
-		t.Fatal("server did not shut down")
+}
+
+func TestCertificateRenewal(t *testing.T) {
+	// Allow renewal immediately and make the agent renew at start.
+	cp := startControlPlane(t, server.WithRenewAfter(1e-9))
+	defer cp.stop()
+	ctx := context.Background()
+
+	cfg, res := cp.enrollAgent(t, "db-1")
+	before, err := pki.ReadCertFile(cfg.CertFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.RenewBefore = 0.999999
+
+	ag, stopAgent := runAgent(t, cfg)
+	defer stopAgent()
+
+	waitFor(t, "renewed certificate on disk", func() bool {
+		after, err := pki.ReadCertFile(cfg.CertFile)
+		return err == nil && after[0].SerialNumber.Cmp(before[0].SerialNumber) != 0
+	})
+	waitFor(t, "agent connected", func() bool { return ag.Status().Connected && !ag.Status().LastAck.IsZero() })
+
+	var certs int
+	if err := cp.srv.Store().Pool.QueryRow(ctx, "SELECT count(*) FROM agent_certificates WHERE server_id = $1", res.ServerID).Scan(&certs); err != nil || certs != 2 {
+		t.Fatalf("certificates recorded = %d, %v", certs, err)
+	}
+	after, _ := pki.ReadCertFile(cfg.CertFile)
+	if id, err := pki.AgentID(after[0]); err != nil || id != res.ServerID {
+		t.Fatalf("renewed identity %v, %v", id, err)
+	}
+}
+
+func TestEnrollRejectsWrongPin(t *testing.T) {
+	cp := startControlPlane(t)
+	defer cp.stop()
+	tok, err := enroll.CreateToken(context.Background(), cp.srv.Store(), enroll.TokenRequest{ServerName: "web-9", Actor: "test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = agent.Enroll(context.Background(), agent.EnrollOptions{
+		APIURL: "https://" + cp.apiLn.Addr().String(), Token: tok.Value,
+		Pin: "0000000000000000000000000000000000000000000000000000000000000000", Dir: t.TempDir(),
+	})
+	if err == nil {
+		t.Fatal("enrollment succeeded with a wrong pin")
+	}
+	// The token must not have been sent, so it is still usable.
+	var used bool
+	if err := cp.srv.Store().Pool.QueryRow(context.Background(), "SELECT used_at IS NOT NULL FROM enrollment_tokens").Scan(&used); err != nil || used {
+		t.Fatalf("token used=%v err=%v", used, err)
 	}
 }

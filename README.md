@@ -21,11 +21,10 @@ traffic, disk cleanup, swap, timezone, security checks, domains and TLS.
 ## Quick start (development)
 
 ```bash
-make build
-make dev-pki      # local CA, server certificate and one enrolled agent in ./.dev
-make dev-server   # terminal 1
-make dev-agent    # terminal 2
-bin/smctl health --server https://127.0.0.1:8444 --ca-file .dev/pki/root.crt
+make dev-up dev-migrate dev-pki   # PostgreSQL + VictoriaMetrics, schema, local CA
+make dev-server                   # terminal 1
+make dev-enroll dev-agent         # terminal 2: enroll an agent with a one-time token, run it
+bin/sm-server servers list --config deploy/dev/sm-server.yaml
 ```
 
 See the [development guide](docs/DEVELOPMENT.md) for the database, tests and VMs.
@@ -39,6 +38,8 @@ See the [development guide](docs/DEVELOPMENT.md) for the database, tests and VMs
 
 ## Status
 
-Phase 0 (foundations) is complete: protobuf API, internal CA, mTLS agent stream with
-heartbeats, database schema and migrations, CI. Phase 1 (enrollment, dashboard, services,
-processes, logs, auth, RBAC, audit) is next — see the [development plan](docs/DEVELOPMENT_PLAN.md).
+- **Phase 0 (foundations):** done.
+- **Phase 1 (MVP):** in progress — token enrollment, certificate renewal, database-backed
+  revocation and a hash-chained audit log are done; command dispatch, the privileged
+  helper, system/services/processes/logs modules, user authentication and RBAC are next.
+  See the [development plan](docs/DEVELOPMENT_PLAN.md).

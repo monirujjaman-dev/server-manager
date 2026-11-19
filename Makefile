@@ -22,7 +22,7 @@ build: ## Build sm-server, sm-agent and smctl into ./bin
 	CGO_ENABLED=0 $(GO) build -trimpath -ldflags '$(LDFLAGS)' -o $(BIN)/ ./cmd/...
 
 .PHONY: test
-test: ## Run unit and integration tests (set SM_TEST_DATABASE_URL for store tests)
+test: ## Run tests (set SM_TEST_DATABASE_URL for database-backed tests)
 	$(GO) test -race -count=1 ./...
 
 .PHONY: lint
@@ -56,19 +56,20 @@ dev-migrate: build ## Apply migrations to the development database
 	SM_DATABASE_URL='$(DEV_DB_URL)' $(BIN)/sm-server migrate up
 
 .PHONY: dev-pki
-dev-pki: build ## Create a dev CA, server cert and one enrolled agent in ./.dev
-	$(BIN)/sm-server pki init --dir $(DEV_DIR)/pki --dns localhost --ip 127.0.0.1
-	$(BIN)/sm-agent keygen --dir $(DEV_DIR)/agent
-	$(BIN)/sm-server pki sign-agent --dir $(DEV_DIR)/pki --csr $(DEV_DIR)/agent/agent.csr --out $(DEV_DIR)/agent/agent.crt
-	cp $(DEV_DIR)/pki/root.crt $(DEV_DIR)/agent/ca.crt
+dev-pki: build ## Create a dev CA and server certificate in ./.dev/pki
+	$(BIN)/sm-server pki init --config deploy/dev/sm-server.yaml --dns localhost --ip 127.0.0.1
 
 .PHONY: dev-server
 dev-server: build ## Run the control plane with the dev config
 	$(BIN)/sm-server serve --config deploy/dev/sm-server.yaml
 
+.PHONY: dev-enroll
+dev-enroll: build ## Enroll a local agent into ./.dev/agent (dev-server must be running); NAME=dev-1
+	./deploy/dev/enroll.sh $(BIN) deploy/dev/sm-server.yaml $(or $(NAME),dev-1) $(DEV_DIR)/agent
+
 .PHONY: dev-agent
-dev-agent: build ## Run an agent against the local control plane
-	$(BIN)/sm-agent run --config deploy/dev/sm-agent.yaml
+dev-agent: build ## Run the enrolled local agent
+	$(BIN)/sm-agent run --config $(DEV_DIR)/agent/agent.yaml
 
 .PHONY: clean
 clean: ## Remove build output

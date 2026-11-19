@@ -71,20 +71,25 @@ until token enrollment (task 1.1) exists.
 
 **Goal:** manage real servers from the CLI with full audit.
 
-| # | Task | Done when |
-|---|------|-----------|
-| 1.1 | Enrollment flow (token → CSR → cert, fingerprint pinning) | `smctl server add` prints an install command; new server shows as online |
-| 1.2 | Agent stream: heartbeat, reconnect with back-off, on-disk buffer | Killing the network for 10 min loses no metrics |
-| 1.3 | Command dispatch: job table, signing, expiry, nonce, result streaming | Commands survive agent reconnects; replayed commands are rejected |
-| 1.4 | `sm-privd` helper: UNIX socket, `SO_PEERCRED` check, typed action registry | Agent-to-helper calls work; any other UID is refused |
-| 1.5 | Module **system**: host facts + CPU/RAM/disk/load metrics to VictoriaMetrics | `smctl dashboard` shows live numbers for all servers |
-| 1.6 | Module **services** (systemd D-Bus): list, status, start/stop/restart, enable/disable | Restarting `nginx` from the CLI works and is audited |
-| 1.7 | Module **processes**: list, tree, top-N, signal | `smctl proc top srv-1` and `smctl proc kill` work |
-| 1.8 | Module **logs**: journald query/tail, SSH-login and sudo history | `smctl logs srv-1 --unit nginx --follow` works |
-| 1.9 | Authentication: local accounts (Argon2id) + TOTP, CLI device-code login, sessions | Login without MFA is impossible |
-| 1.10 | RBAC: built-in roles per server group | `viewer` cannot restart services (test) |
-| 1.11 | Audit log with hash chain + `smctl audit` search + chain verify job | Tampering with a row is detected |
-| 1.12 | systemd units with sandboxing, install script, `.deb`/`.rpm` via GoReleaser | Fresh Ubuntu 24.04 and Rocky 9 VMs enroll with one command |
+| # | Task | Done when | Status |
+|---|------|-----------|--------|
+| 1.1 | Enrollment flow (token → CSR → cert, fingerprint pinning) | `smctl server add` prints an install command; new server shows as online | ✅ `sm-server enroll create-token` + `sm-agent enroll`; moves to `smctl` with 1.9 |
+| 1.2 | Agent stream: heartbeat, reconnect with back-off, on-disk buffer | Killing the network for 10 min loses no metrics | 🟡 heartbeat + reconnect done; buffer comes with metrics (1.5) |
+| 1.3 | Command dispatch: job table, signing, expiry, nonce, result streaming | Commands survive agent reconnects; replayed commands are rejected | ⏳ |
+| 1.4 | `sm-privd` helper: UNIX socket, `SO_PEERCRED` check, typed action registry | Agent-to-helper calls work; any other UID is refused | ⏳ |
+| 1.5 | Module **system**: host facts + CPU/RAM/disk/load metrics to VictoriaMetrics | `smctl dashboard` shows live numbers for all servers | ⏳ |
+| 1.6 | Module **services** (systemd D-Bus): list, status, start/stop/restart, enable/disable | Restarting `nginx` from the CLI works and is audited | ⏳ |
+| 1.7 | Module **processes**: list, tree, top-N, signal | `smctl proc top srv-1` and `smctl proc kill` work | ⏳ |
+| 1.8 | Module **logs**: journald query/tail, SSH-login and sudo history | `smctl logs srv-1 --unit nginx --follow` works | ⏳ |
+| 1.9 | Authentication: local accounts (Argon2id) + TOTP, CLI device-code login, sessions | Login without MFA is impossible | ⏳ |
+| 1.10 | RBAC: built-in roles per server group | `viewer` cannot restart services (test) | ⏳ |
+| 1.11 | Audit log with hash chain + `smctl audit` search + chain verify job | Tampering with a row is detected | 🟡 hash chain, tamper detection, `sm-server audit list/verify` done; `smctl` search + scheduled verify pending |
+| 1.12 | systemd units with sandboxing, install script, `.deb`/`.rpm` via GoReleaser | Fresh Ubuntu 24.04 and Rocky 9 VMs enroll with one command | ⏳ |
+
+Also done in the first Phase 1 slice (needed for 1.1 to be usable in production):
+database-backed revocation (every issued certificate is recorded; unknown serials are
+rejected), automatic certificate renewal, server status tracking (online/offline/revoked
+with host facts), and stream termination on revocation or certificate expiry.
 
 **Exit criteria (v0.1.0):**
 - Enroll 3 servers, view dashboard, restart a service, kill a process, tail logs — all from `smctl`.
