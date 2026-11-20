@@ -73,9 +73,10 @@ func TestCommandsEndToEnd(t *testing.T) {
 	// Privileged helper on a private socket, accepting only this test's UID.
 	pcfg := privd.DefaultConfig()
 	pcfg.Socket = filepath.Join(t.TempDir(), "privd.sock")
-	pcfg.CertFile, pcfg.CommandKeyFile = cfg.CertFile, cfg.CommandKeyFile
+	// The helper reads only the trust directory written at enrollment.
+	pcfg.CommandKeyFile, pcfg.ServerIDFile = privd.TrustPaths(filepath.Dir(cfg.CommandKeyFile))
 	uid := uint32(os.Getuid()) //nolint:gosec // UIDs fit uint32
-	psrv, err := privd.New(pcfg, slog.New(slog.DiscardHandler), privd.Options{Systemd: sd, AllowedUID: &uid})
+	psrv, err := privd.New(pcfg, slog.New(slog.DiscardHandler), privd.Options{Systemd: sd, AllowedUID: &uid, TrustedUID: &uid})
 	if err != nil {
 		t.Fatal(err)
 	}

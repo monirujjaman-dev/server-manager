@@ -29,6 +29,7 @@ import (
 	"github.com/monirujjaman-dev/server-manager/gen/sm/agent/v1/agentv1connect"
 	"github.com/monirujjaman-dev/server-manager/internal/pkg/version"
 	"github.com/monirujjaman-dev/server-manager/internal/pki"
+	"github.com/monirujjaman-dev/server-manager/internal/privd"
 )
 
 // EnrollOptions configures a one-time enrollment.
@@ -40,8 +41,12 @@ type EnrollOptions struct {
 	// Pin is the hex SHA-256 of the control plane certificate's public key
 	// (printed by `sm-server enroll create-token`).
 	Pin string
-	// Dir receives agent.key, agent.crt, ca.crt and agent.yaml.
+	// Dir receives agent.key, agent.crt, ca.crt and agent.yaml. It belongs to the agent.
 	Dir string
+	// TrustDir receives the command verification key and the server identity that the
+	// privileged helper trusts. It must not be inside Dir: in production it is
+	// /etc/sm-agent-trust, owned by root and only readable by the agent.
+	TrustDir string
 	// AgentURL overrides the agent gateway URL returned by the control plane.
 	AgentURL string
 	// Owner, if set, becomes the owner of Dir and the files in it, so the agent can run
@@ -71,6 +76,9 @@ func Enroll(ctx context.Context, opts EnrollOptions) (EnrollResult, error) {
 	}
 	if opts.Token == "" {
 		return EnrollResult{}, errors.New("token is required")
+	}
+	if err := checkTrustDir(opts.Dir, opts.TrustDir); err != nil {
+		return EnrollResult{}, err
 	}
 	paths := agentPaths(opts.Dir)
 	if _, err := os.Stat(paths.key); err == nil {
@@ -122,6 +130,11 @@ func Enroll(ctx context.Context, opts EnrollOptions) (EnrollResult, error) {
 		return EnrollResult{}, err
 	}
 
+	cmdKey := resp.Msg.GetCommandPublicKey()
+	if len(cmdKey) != ed25519.PublicKeySize {
+		return EnrollResult{}, errors.New("enroll: the control plane sent no command key; upgrade sm-server")
+	}
+
 	res.AgentURL = opts.AgentURL
 	if res.AgentURL == "" {
 		res.AgentURL = resp.Msg.GetAgentUrl()
@@ -130,6 +143,12 @@ func Enroll(ctx context.Context, opts EnrollOptions) (EnrollResult, error) {
 		res.AgentURL = "https://" + net.JoinHostPort(u.Hostname(), "8443")
 	}
 
+	// The trust files come first and stay owned by whoever runs enroll (root in
+	// production), never by Owner. Writing them before the agent's key means a failed
+	// enrollment can simply be retried and never leaves an identity without them.
+	if err := privd.WriteTrust(opts.TrustDir, res.ServerID, cmdKey); err != nil {
+		return EnrollResult{}, fmt.Errorf("write trust files: %w", err)
+	}
 	if err := os.MkdirAll(opts.Dir, 0o700); err != nil {
 		return EnrollResult{}, err
 	}
@@ -142,21 +161,58 @@ func Enroll(ctx context.Context, opts EnrollOptions) (EnrollResult, error) {
 	if err := pki.WriteCertFile(paths.ca, root); err != nil {
 		return EnrollResult{}, err
 	}
-	if k := resp.Msg.GetCommandPublicKey(); len(k) == ed25519.PublicKeySize {
-		if err := pki.WriteCommandPublicKey(paths.cmdKey, k); err != nil {
-			return EnrollResult{}, err
-		}
-	}
 	res.ConfigPath = filepath.Join(opts.Dir, "agent.yaml")
-	if err := writeAgentConfig(res.ConfigPath, res.AgentURL, paths); err != nil {
+	cmdKeyPath, _ := privd.TrustPaths(opts.TrustDir)
+	if err := writeAgentConfig(res.ConfigPath, res.AgentURL, paths, cmdKeyPath); err != nil {
 		return EnrollResult{}, err
 	}
 	if opts.Owner != "" {
-		if err := chownAll(opts.Owner, opts.Dir, paths.key, paths.cert, paths.ca, paths.cmdKey, res.ConfigPath); err != nil {
+		if err := chownAll(opts.Owner, opts.Dir, paths.key, paths.cert, paths.ca, res.ConfigPath); err != nil {
 			return EnrollResult{}, err
 		}
 	}
 	return res, nil
+}
+
+// checkTrustDir refuses a trust directory inside (or equal to) the agent's directory,
+// where the agent could replace it.
+func checkTrustDir(dir, trustDir string) error {
+	if trustDir == "" {
+		return errors.New("a trust directory is required (e.g. " + privd.DefaultTrustDir + ")")
+	}
+	d, err1 := resolveExisting(dir)
+	t, err2 := resolveExisting(trustDir)
+	if err := errors.Join(err1, err2); err != nil {
+		return err
+	}
+	rel, err := filepath.Rel(d, t)
+	if err != nil {
+		return err
+	}
+	outside := rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator))
+	if !outside { // also rejects rel == "." (the same directory)
+		return fmt.Errorf("trust directory %s must not be inside the agent directory %s", trustDir, dir)
+	}
+	return nil
+}
+
+// resolveExisting makes p absolute and resolves symlinks in the part of it that exists,
+// so a symlinked directory cannot hide that one path is inside the other.
+func resolveExisting(p string) (string, error) {
+	abs, err := filepath.Abs(p)
+	if err != nil {
+		return "", err
+	}
+	var rest []string
+	for cur := abs; ; cur = filepath.Dir(cur) {
+		if real, err := filepath.EvalSymlinks(cur); err == nil {
+			return filepath.Join(append([]string{real}, rest...)...), nil
+		}
+		if filepath.Dir(cur) == cur {
+			return abs, nil
+		}
+		rest = append([]string{filepath.Base(cur)}, rest...)
+	}
 }
 
 // checkEnrollResponse verifies that the issued certificate chains to the returned CA,
@@ -232,18 +288,17 @@ func chownAll(owner string, paths ...string) error {
 	return nil
 }
 
-type filePaths struct{ key, cert, ca, cmdKey string }
+type filePaths struct{ key, cert, ca string }
 
 func agentPaths(dir string) filePaths {
 	return filePaths{
-		key:    filepath.Join(dir, "agent.key"),
-		cert:   filepath.Join(dir, "agent.crt"),
-		ca:     filepath.Join(dir, "ca.crt"),
-		cmdKey: filepath.Join(dir, "command.pub"),
+		key:  filepath.Join(dir, "agent.key"),
+		cert: filepath.Join(dir, "agent.crt"),
+		ca:   filepath.Join(dir, "ca.crt"),
 	}
 }
 
-func writeAgentConfig(path, agentURL string, p filePaths) error {
+func writeAgentConfig(path, agentURL string, p filePaths, cmdKey string) error {
 	abs := func(s string) string {
 		if a, err := filepath.Abs(s); err == nil {
 			return a
@@ -255,8 +310,8 @@ func writeAgentConfig(path, agentURL string, p filePaths) error {
 		"ca_file":    abs(p.ca),
 		"cert_file":  abs(p.cert),
 		"key_file":   abs(p.key),
-		// Written at enrollment, or on first connection for older control planes.
-		"command_key_file": abs(p.cmdKey),
+		// Root-owned; written at enrollment and never by the agent.
+		"command_key_file": abs(cmdKey),
 	}
 	data, err := yaml.Marshal(cfg)
 	if err != nil {
@@ -272,4 +327,54 @@ func writeAgentConfig(path, agentURL string, p filePaths) error {
 		return err
 	}
 	return f.Close()
+}
+
+// MigrateTrust moves an existing enrollment to the root-owned trust directory. Agents
+// enrolled before it existed kept the command key in their own directory, where the
+// agent could replace it. It copies that key and the identity from agent.crt into
+// trustDir unless trustDir already has them, and reports whether it did. Run it as
+// root (the package's post-install script does).
+//
+// This trusts the key as it is in agentDir at the time of the migration; if the agent
+// could have been compromised before, re-enroll instead.
+func MigrateTrust(agentDir, trustDir string) (bool, error) {
+	if err := checkTrustDir(agentDir, trustDir); err != nil {
+		return false, err
+	}
+	// Anything already in the trust directory wins: never replace a key there with one
+	// from the agent's directory.
+	keyPath, idPath := privd.TrustPaths(trustDir)
+	for _, p := range []string{keyPath, idPath} {
+		if _, err := os.Lstat(p); err == nil || !errors.Is(err, os.ErrNotExist) {
+			return false, err
+		}
+	}
+	// Both inputs are in a directory the agent controls: read them without following
+	// symlinks, only as small regular files.
+	paths := agentPaths(agentDir)
+	certData, err := readAgentFile(paths.cert)
+	if err != nil {
+		return false, fmt.Errorf("agent certificate: %w", err)
+	}
+	certs, err := pki.ParseCerts(certData, paths.cert)
+	if err != nil {
+		return false, err
+	}
+	id, err := pki.AgentID(certs[0])
+	if err != nil {
+		return false, err
+	}
+	keyFile := filepath.Join(agentDir, "command.pub")
+	keyData, err := readAgentFile(keyFile)
+	if err != nil {
+		return false, fmt.Errorf("command key: %w (re-enroll this server)", err)
+	}
+	key, err := pki.ParseCommandPublicKey(keyData, keyFile)
+	if err != nil {
+		return false, fmt.Errorf("command key: %w (re-enroll this server)", err)
+	}
+	if err := privd.WriteTrust(trustDir, id, key); err != nil {
+		return false, err
+	}
+	return true, nil
 }

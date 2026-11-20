@@ -52,6 +52,9 @@ message ServerMetrics {
   double net_rx_bytes_per_second = 9;
   double net_tx_bytes_per_second = 10;
   uint64 uptime_seconds = 11;
+  // Running Docker containers; unset when the server has no Docker.
+  optional uint32 containers_running = 12;
+  uint64 containers_memory_bytes = 13;
 }
 
 message CreateEnrollmentTokenRequest {

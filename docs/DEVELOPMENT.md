@@ -79,16 +79,28 @@ smctl whoami
 smctl dashboard --watch 5s
 smctl system info web-1
 smctl services restart web-1 nginx
+smctl services restart --group staging nginx --parallel 5   # bulk: every online server in a group
+smctl system info web-1,web-2                               # bulk: an explicit list (or --all)
 smctl processes list web-1 --sort mem --limit 20
-smctl processes kill web-1 1234 --start 567890 --yes     # medium risk: needs --yes
+smctl processes kill web-1 1234 --start 567890              # medium risk: type "web-1" to confirm
 smctl logs web-1 --unit nginx --priority err --since 2h
 smctl logs web-1 --unit nginx --follow
 smctl logins web-1 --failed
+smctl docker ps web-1 --stopped                             # Docker runs through the privileged helper
+smctl docker restart --group staging app                    # bulk, low risk
+smctl docker logs web-1 app --since 1h --follow
+smctl docker stats web-1
+smctl docker prune web-1 images --all-images                # medium risk: type "web-1" to confirm
+smctl docker rm web-1 old-job                               # admin; high risk, step-up
 smctl enroll create-token --name web-2 --group production  # admin; asks for a fresh MFA code if needed
-smctl servers revoke web-2 --reason "decommissioned" --yes # admin; high risk
+smctl servers revoke web-2 --reason "decommissioned"       # admin; high risk: type "web-2" to confirm
 smctl audit list                                           # global admin
 smctl logout
 ```
+
+Medium- and higher-risk actions ask you to type the server name (the group name for
+`--group`, the number of servers for a list or `--all`). Scripts pass `--yes`; without
+a terminal and without `--yes` the action is refused.
 
 Host-side admin commands (database access, no login) stay in `sm-server` for
 bootstrapping and break-glass use:
@@ -104,12 +116,16 @@ sm-server audit list|verify
 Set `victoriametrics_url: http://127.0.0.1:8428` (the dev compose service) to keep
 metric history; query it with PromQL, e.g. `sm_cpu_percent{server_id="…"}`.
 
-Privileged actions (service control, signals) need the helper. On a real server it runs
-from `deploy/systemd/sm-agent-privd.service`; locally, run it as root next to the agent
-and point both at the same socket:
+Privileged actions (service control, signals, Docker) need the helper. On a real server
+it runs from `deploy/systemd/sm-agent-privd.service`; locally, run it as root next to the
+agent and point both at the same socket. The helper only trusts root-owned files, so
+copy the trust files `make dev-enroll` wrote to `.dev/agent-trust` into a root-owned
+directory first:
 
 ```bash
-sudo bin/sm-agent privd --privd-config privd.yaml   # socket, agent_user, cert_file, command_key_file
+sudo install -d -m 0755 /etc/sm-agent-trust
+sudo install -m 0644 .dev/agent-trust/command.pub .dev/agent-trust/server-id /etc/sm-agent-trust/
+sudo bin/sm-agent privd --privd-config privd.yaml   # socket, agent_user, command_key_file, server_id_file, docker_socket
 ```
 
 `agent_user` must not be root; the helper refuses connections from any other UID.

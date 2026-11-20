@@ -134,3 +134,42 @@ func TestVMWriterRetries(t *testing.T) {
 		t.Fatalf("calls %d body %q", calls, body)
 	}
 }
+
+func TestContainerMetrics(t *testing.T) {
+	st, _ := storetest.Open(t)
+	ctx := context.Background()
+	withDocker, noDocker := uuid.New(), uuid.New()
+	for i, id := range []uuid.UUID{withDocker, noDocker} {
+		if _, err := st.CreateServer(ctx, db.CreateServerParams{ID: id, Name: []string{"docker-1", "plain-1"}[i]}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s := NewSink(st.Queries, nil, slog.New(slog.DiscardHandler))
+	now := time.Now()
+	b := sample(now, 10)
+	three := uint32(3)
+	b.Host.ContainersRunning, b.Host.ContainersMemoryBytes = &three, 4096
+	if err := s.Record(ctx, withDocker, b); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Record(ctx, noDocker, sample(now, 10)); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := st.ListServersWithMetrics(ctx)
+	if err != nil || len(rows) != 2 {
+		t.Fatalf("%v %v", rows, err)
+	}
+	if r := rows[0]; r.ContainersRunning == nil || *r.ContainersRunning != 3 || *r.ContainersMemoryBytes != 4096 {
+		t.Fatalf("docker host %+v", r)
+	}
+	if r := rows[1]; r.ContainersRunning != nil || r.ContainersMemoryBytes != nil {
+		t.Fatalf("host without docker should have NULL containers: %+v", r)
+	}
+	out := string(PrometheusLines(withDocker, b))
+	if !strings.Contains(out, `sm_containers_running{server_id="`+withDocker.String()+`"} 3 `) {
+		t.Errorf("missing container gauge in\n%s", out)
+	}
+	if strings.Contains(string(PrometheusLines(noDocker, sample(now, 1))), "sm_containers") {
+		t.Error("container gauges exported for a host without Docker")
+	}
+}

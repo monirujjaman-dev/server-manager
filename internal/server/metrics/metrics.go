@@ -97,6 +97,7 @@ func (s *Sink) Record(ctx context.Context, serverID uuid.UUID, b *agentv1.Metric
 		SwapTotalBytes: clampInt64(h.GetSwapTotalBytes()), SwapFreeBytes: clampInt64(h.GetSwapFreeBytes()),
 		UptimeSeconds: clampInt64(h.GetUptimeSeconds()), DiskMaxUsedPercent: maxPct, DiskMaxMount: maxMount,
 		NetRxBytesPerSecond: rx, NetTxBytesPerSecond: tx,
+		ContainersRunning: containersRunning(h), ContainersMemoryBytes: containersMemory(h),
 	}); err != nil {
 		return err
 	}
@@ -104,6 +105,25 @@ func (s *Sink) Record(ctx context.Context, serverID uuid.UUID, b *agentv1.Metric
 		s.vm.Enqueue(PrometheusLines(serverID, b))
 	}
 	return nil
+}
+
+// maxContainers bounds the reported container count; far above any real host.
+const maxContainers = 100_000
+
+func containersRunning(h *agentv1.HostMetrics) *int32 {
+	if h.ContainersRunning == nil {
+		return nil
+	}
+	n := int32(min(h.GetContainersRunning(), maxContainers)) //nolint:gosec // bounded
+	return &n
+}
+
+func containersMemory(h *agentv1.HostMetrics) *int64 {
+	if h.ContainersRunning == nil {
+		return nil
+	}
+	n := clampInt64(h.GetContainersMemoryBytes())
+	return &n
 }
 
 func clampInt64(v uint64) int64 {

@@ -98,22 +98,24 @@ type ServerGroup struct {
 }
 
 type ServerMetric struct {
-	ServerID             uuid.UUID
-	CollectedAt          time.Time
-	CpuPercent           float64
-	CpuCount             int32
-	Load1                float64
-	Load5                float64
-	Load15               float64
-	MemoryTotalBytes     int64
-	MemoryAvailableBytes int64
-	SwapTotalBytes       int64
-	SwapFreeBytes        int64
-	UptimeSeconds        int64
-	DiskMaxUsedPercent   float64
-	DiskMaxMount         string
-	NetRxBytesPerSecond  float64
-	NetTxBytesPerSecond  float64
+	ServerID              uuid.UUID
+	CollectedAt           time.Time
+	CpuPercent            float64
+	CpuCount              int32
+	Load1                 float64
+	Load5                 float64
+	Load15                float64
+	MemoryTotalBytes      int64
+	MemoryAvailableBytes  int64
+	SwapTotalBytes        int64
+	SwapFreeBytes         int64
+	UptimeSeconds         int64
+	DiskMaxUsedPercent    float64
+	DiskMaxMount          string
+	NetRxBytesPerSecond   float64
+	NetTxBytesPerSecond   float64
+	ContainersRunning     *int32
+	ContainersMemoryBytes *int64
 }
 
 type Session struct {

@@ -15,13 +15,16 @@ Environment=SM_PRIVD_AGENT_USER=smagent
 
 RuntimeDirectory=sm-agent
 RuntimeDirectoryMode=0750
-# No network namespace access: only filesystem UNIX sockets (its own and D-Bus) work.
+# No network namespace access: only filesystem UNIX sockets work (its own, D-Bus, and
+# the Docker daemon's /run/docker.sock for docker.* actions; SM_PRIVD_DOCKER_SOCKET
+# changes the path). The agent itself never gets Docker access: it is root-equivalent.
 PrivateNetwork=yes
 IPAddressDeny=any
 RestrictAddressFamilies=AF_UNIX AF_NETLINK
 # CAP_KILL: signal processes. CAP_CHOWN: give the socket to the agent's group.
-# CAP_DAC_READ_SEARCH: read the agent's certificate and command key in /etc/sm-agent.
-CapabilityBoundingSet=CAP_KILL CAP_CHOWN CAP_DAC_READ_SEARCH
+# It trusts only /etc/sm-agent-trust (root-owned, checked at load) and never reads the
+# agent's own directory, so it needs no CAP_DAC_READ_SEARCH.
+CapabilityBoundingSet=CAP_KILL CAP_CHOWN
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes

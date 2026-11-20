@@ -139,6 +139,10 @@ func PrometheusLines(serverID uuid.UUID, b *agentv1.MetricsBatch) []byte {
 	line("sm_swap_total_bytes", "", float64(h.GetSwapTotalBytes()))
 	line("sm_swap_free_bytes", "", float64(h.GetSwapFreeBytes()))
 	line("sm_uptime_seconds", "", float64(h.GetUptimeSeconds()))
+	if h.ContainersRunning != nil {
+		line("sm_containers_running", "", float64(h.GetContainersRunning()))
+		line("sm_containers_memory_bytes", "", float64(h.GetContainersMemoryBytes()))
+	}
 	for _, f := range h.GetFilesystems() {
 		l := label("mount", f.GetMountPoint()) + "," + label("fstype", f.GetFsType())
 		line("sm_filesystem_size_bytes", l, float64(f.GetTotalBytes()))

@@ -315,6 +315,13 @@ cast stored with the audit event) and announced to other admins.
   only the typed privileged actions.
 - **Docker socket caveat:** access to `/var/run/docker.sock` equals root. Docker
   calls therefore go through `sm-privd`, never directly from `sm-agent`.
+- **Trust anchors are root-owned:** `sm-privd` verifies commands with the control
+  plane's key and this server's identity from `/etc/sm-agent-trust`, written by
+  enrollment as root. It refuses them unless the files and every directory above them
+  are owned by root and not writable by group or others, and it never reads the
+  agent's own directory (`/etc/sm-agent`, which the agent must be able to write for
+  certificate renewal). Otherwise a compromised agent could plant its own command key
+  and sign privileged commands.
 
 ### 5.4 Audit log
 

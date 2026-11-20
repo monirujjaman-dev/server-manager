@@ -116,14 +116,30 @@ copied yourself, and `--base-url` to download from a mirror.
 The packages create:
 
 - user `smagent` (no login, member of `systemd-journal`), which runs `sm-agent`
-- `/etc/sm-agent` (mode 0700, owned by `smagent`) for the key, certificates and config
+- `/etc/sm-agent` (mode 0700, owned by `smagent`) for the agent's key, certificates and
+  config; the agent rewrites its certificate there on renewal
+- `/etc/sm-agent-trust` (mode 0755, owned by root) for what the privileged helper
+  trusts: the control plane's command key (`command.pub`) and this server's identity
+  (`server-id`). Enrollment, which runs as root, writes them; the agent can read but not
+  change them, and the helper refuses them unless they and every directory above them
+  are root-owned and not writable by group or others
 - `sm-agent-privd.service` (root, no network) and `sm-agent.service`, which starts only
   after enrollment
 
 ## Upgrades and removal
 
-Install the newer package the same way; running services are restarted. Removing a
-package stops and disables its services but keeps `/etc/sm-agent` or
-`/var/lib/sm-server`, so a reinstall keeps the server's identity. Delete those
+Install the newer package the same way; running services are restarted.
+
+Upgrading an agent enrolled before `/etc/sm-agent-trust` existed runs
+`sm-agent migrate-trust`, which copies the command key from `/etc/sm-agent` into the
+trust directory. This is attempted at most once per host (a marker,
+`/etc/sm-agent-trust/.migration-done`, is written first, by fresh installs too) and
+never replaces a key already in the trust directory; if it fails, re-enroll the server.
+Older versions let the agent write that key, so if a server may have been compromised
+before the upgrade, revoke it and enroll it again instead.
+
+Removing a package stops and disables its services but keeps `/etc/sm-agent`,
+`/etc/sm-agent-trust` or `/var/lib/sm-server`, so a reinstall keeps the server's
+identity. Delete those
 directories to remove the identity, and revoke the server with
 `smctl servers revoke <name>`.

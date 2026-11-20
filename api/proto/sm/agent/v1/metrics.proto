@@ -26,6 +26,10 @@ message HostMetrics {
   uint64 uptime_seconds = 10;
   repeated Filesystem filesystems = 11;
   repeated NetworkInterface interfaces = 12;
+  // Running Docker containers, counted from cgroupfs; unset when Docker is not found.
+  optional uint32 containers_running = 13;
+  // Memory used by running containers, excluding page cache.
+  uint64 containers_memory_bytes = 14;
 }
 
 message NetworkInterface {

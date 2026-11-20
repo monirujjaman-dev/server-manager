@@ -33,7 +33,7 @@ func BytesHuman(n uint64) string {
 // PrintServers renders the fleet dashboard.
 func PrintServers(w io.Writer, servers []*operatorv1.Server, now time.Time) error {
 	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
-	_, _ = fmt.Fprintln(tw, "NAME\tGROUP\tSTATUS\tCPU\tLOAD\tMEMORY\tDISK (fullest)\tNET IN/OUT\tUPTIME\tUPDATED")
+	_, _ = fmt.Fprintln(tw, "NAME\tGROUP\tSTATUS\tCPU\tLOAD\tMEMORY\tDISK (fullest)\tNET IN/OUT\tCONTAINERS\tUPTIME\tUPDATED")
 	var online, alerts int
 	for _, s := range servers {
 		if s.GetStatus() == "online" {
@@ -41,7 +41,7 @@ func PrintServers(w io.Writer, servers []*operatorv1.Server, now time.Time) erro
 		}
 		m := s.GetMetrics()
 		if m == nil {
-			_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t-\t-\t-\t-\t-\t-\tno data\n", s.GetName(), s.GetGroup(), s.GetStatus())
+			_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t-\t-\t-\t-\t-\t-\t-\tno data\n", s.GetName(), s.GetGroup(), s.GetStatus())
 			continue
 		}
 		age := now.Sub(m.GetCollectedAt().AsTime())
@@ -60,9 +60,13 @@ func PrintServers(w io.Writer, servers []*operatorv1.Server, now time.Time) erro
 			alerts++
 		}
 		uptime := (time.Duration(m.GetUptimeSeconds()) * time.Second).Truncate(time.Minute).String() //nolint:gosec // uptime fits
-		_, _ = fmt.Fprintf(tw, "%s%s\t%s\t%s\t%.0f%%\t%.2f\t%s\t%.0f%% %s\t%s/s / %s/s\t%s\t%s\n", s.GetName(), flag, s.GetGroup(), s.GetStatus(),
+		containers := "-"
+		if m.ContainersRunning != nil {
+			containers = fmt.Sprintf("%d (%s)", m.GetContainersRunning(), BytesHuman(m.GetContainersMemoryBytes()))
+		}
+		_, _ = fmt.Fprintf(tw, "%s%s\t%s\t%s\t%.0f%%\t%.2f\t%s\t%.0f%% %s\t%s/s / %s/s\t%s\t%s\t%s\n", s.GetName(), flag, s.GetGroup(), s.GetStatus(),
 			m.GetCpuPercent(), m.GetLoad1(), mem, m.GetDiskMaxUsedPercent(), m.GetDiskMaxMount(),
-			BytesHuman(uint64(m.GetNetRxBytesPerSecond())), BytesHuman(uint64(m.GetNetTxBytesPerSecond())), uptime, updated)
+			BytesHuman(uint64(m.GetNetRxBytesPerSecond())), BytesHuman(uint64(m.GetNetTxBytesPerSecond())), containers, uptime, updated)
 	}
 	_, _ = fmt.Fprintf(tw, "\n%d servers, %d online", len(servers), online)
 	if alerts > 0 {

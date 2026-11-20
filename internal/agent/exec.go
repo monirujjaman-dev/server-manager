@@ -3,10 +3,8 @@ package agent
 import (
 	"bytes"
 	"context"
-	"crypto/ed25519"
 	"errors"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,28 +18,25 @@ import (
 
 const commandTimeout = 2 * time.Minute
 
-// updateVerifier applies the command key from a Welcome. The first key seen is stored
-// (trust on first use over the authenticated mTLS stream, for agents enrolled before the
-// key existed); a different key later is refused so a compromised TLS endpoint alone
-// cannot start issuing commands.
+// MaxResultBytes bounds a command result. The control plane refuses stream messages
+// over 1 MiB and drops the stream, which would also lose metrics and other results, so
+// anything larger is reported as a failure instead of being sent.
+const MaxResultBytes = 768 << 10
+
+// updateVerifier loads the command key written at enrollment (root-owned, in the trust
+// directory; the agent never writes it). The key offered in a Welcome is only compared:
+// a different one is refused, so a compromised TLS endpoint alone cannot start issuing
+// commands.
 func (a *Agent) updateVerifier(serverID uuid.UUID, offered []byte) {
 	stored, err := pki.ReadCommandPublicKey(a.cfg.CommandKeyFile)
-	switch {
-	case err == nil:
-		if len(offered) > 0 && !bytes.Equal(stored, offered) {
-			a.log.Error("control plane offered a different command key than the one stored; commands will be rejected",
-				"file", a.cfg.CommandKeyFile)
-		}
-	case errors.Is(err, os.ErrNotExist) && len(offered) == ed25519.PublicKeySize:
-		if err := pki.WriteCommandPublicKey(a.cfg.CommandKeyFile, offered); err != nil {
-			a.log.Error("store command key", "err", err)
-			return
-		}
-		a.log.Info("stored command verification key", "file", a.cfg.CommandKeyFile)
-		stored = offered
-	default:
-		a.log.Warn("no command verification key; commands will be rejected", "err", err)
+	if err != nil {
+		a.log.Warn("no command verification key; commands will be rejected (re-enroll, or run `sm-agent migrate-trust` as root)",
+			"file", a.cfg.CommandKeyFile, "err", err)
 		return
+	}
+	if len(offered) > 0 && !bytes.Equal(stored, offered) {
+		a.log.Error("control plane offered a different command key than the one stored; commands will be rejected",
+			"file", a.cfg.CommandKeyFile)
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -77,6 +72,19 @@ func (a *Agent) handleCommand(ctx context.Context, cmd *agentv1.Command) {
 }
 
 func (a *Agent) execute(ctx context.Context, cmd *agentv1.Command) *agentv1.CommandResult {
+	return limitResult(a.executeUnbounded(ctx, cmd))
+}
+
+// limitResult replaces a result that is too large to send with a failure.
+func limitResult(res *agentv1.CommandResult) *agentv1.CommandResult {
+	if n := proto.Size(res); n > MaxResultBytes {
+		return &agentv1.CommandResult{Id: res.GetId(), Status: agentv1.CommandStatus_COMMAND_STATUS_FAILED,
+			Error: fmt.Sprintf("result too large to send (%d KiB, limit %d KiB); narrow the request", n>>10, MaxResultBytes>>10)}
+	}
+	return res
+}
+
+func (a *Agent) executeUnbounded(ctx context.Context, cmd *agentv1.Command) *agentv1.CommandResult {
 	id := unverifiedID(cmd)
 	reject := func(err error) *agentv1.CommandResult {
 		a.log.Warn("command rejected", "job_id", id, "err", err)

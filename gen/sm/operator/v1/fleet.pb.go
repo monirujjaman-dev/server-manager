@@ -232,8 +232,11 @@ type ServerMetrics struct {
 	NetRxBytesPerSecond  float64                `protobuf:"fixed64,9,opt,name=net_rx_bytes_per_second,json=netRxBytesPerSecond,proto3" json:"net_rx_bytes_per_second,omitempty"`
 	NetTxBytesPerSecond  float64                `protobuf:"fixed64,10,opt,name=net_tx_bytes_per_second,json=netTxBytesPerSecond,proto3" json:"net_tx_bytes_per_second,omitempty"`
 	UptimeSeconds        uint64                 `protobuf:"varint,11,opt,name=uptime_seconds,json=uptimeSeconds,proto3" json:"uptime_seconds,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Running Docker containers; unset when the server has no Docker.
+	ContainersRunning     *uint32 `protobuf:"varint,12,opt,name=containers_running,json=containersRunning,proto3,oneof" json:"containers_running,omitempty"`
+	ContainersMemoryBytes uint64  `protobuf:"varint,13,opt,name=containers_memory_bytes,json=containersMemoryBytes,proto3" json:"containers_memory_bytes,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *ServerMetrics) Reset() {
@@ -339,6 +342,20 @@ func (x *ServerMetrics) GetNetTxBytesPerSecond() float64 {
 func (x *ServerMetrics) GetUptimeSeconds() uint64 {
 	if x != nil {
 		return x.UptimeSeconds
+	}
+	return 0
+}
+
+func (x *ServerMetrics) GetContainersRunning() uint32 {
+	if x != nil && x.ContainersRunning != nil {
+		return *x.ContainersRunning
+	}
+	return 0
+}
+
+func (x *ServerMetrics) GetContainersMemoryBytes() uint64 {
+	if x != nil {
+		return x.ContainersMemoryBytes
 	}
 	return 0
 }
@@ -789,7 +806,7 @@ const file_sm_operator_v1_fleet_proto_rawDesc = "" +
 	"\flast_seen_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"lastSeenAt\x127\n" +
 	"\ametrics\x18\n" +
-	" \x01(\v2\x1d.sm.operator.v1.ServerMetricsR\ametrics\"\xf2\x03\n" +
+	" \x01(\v2\x1d.sm.operator.v1.ServerMetricsR\ametrics\"\xf5\x04\n" +
 	"\rServerMetrics\x12=\n" +
 	"\fcollected_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\vcollectedAt\x12\x1f\n" +
 	"\vcpu_percent\x18\x02 \x01(\x01R\n" +
@@ -803,7 +820,10 @@ const file_sm_operator_v1_fleet_proto_rawDesc = "" +
 	"\x17net_rx_bytes_per_second\x18\t \x01(\x01R\x13netRxBytesPerSecond\x124\n" +
 	"\x17net_tx_bytes_per_second\x18\n" +
 	" \x01(\x01R\x13netTxBytesPerSecond\x12%\n" +
-	"\x0euptime_seconds\x18\v \x01(\x04R\ruptimeSeconds\"v\n" +
+	"\x0euptime_seconds\x18\v \x01(\x04R\ruptimeSeconds\x122\n" +
+	"\x12containers_running\x18\f \x01(\rH\x00R\x11containersRunning\x88\x01\x01\x126\n" +
+	"\x17containers_memory_bytes\x18\r \x01(\x04R\x15containersMemoryBytesB\x15\n" +
+	"\x13_containers_running\"v\n" +
 	"\x1cCreateEnrollmentTokenRequest\x12\x1f\n" +
 	"\vserver_name\x18\x01 \x01(\tR\n" +
 	"serverName\x12\x14\n" +
@@ -905,6 +925,7 @@ func file_sm_operator_v1_fleet_proto_init() {
 	if File_sm_operator_v1_fleet_proto != nil {
 		return
 	}
+	file_sm_operator_v1_fleet_proto_msgTypes[3].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

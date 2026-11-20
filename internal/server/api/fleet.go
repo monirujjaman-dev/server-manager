@@ -92,6 +92,11 @@ func (s *FleetServer) ListServers(ctx context.Context, _ *connect.Request[operat
 				NetRxBytesPerSecond: deref(r.NetRxBytesPerSecond), NetTxBytesPerSecond: deref(r.NetTxBytesPerSecond),
 				UptimeSeconds: uint64(max(deref(r.UptimeSeconds), 0)), //nolint:gosec // non-negative
 			}
+			if r.ContainersRunning != nil {
+				n := uint32(max(*r.ContainersRunning, 0)) //nolint:gosec // non-negative
+				srv.Metrics.ContainersRunning = &n
+				srv.Metrics.ContainersMemoryBytes = uint64(max(deref(r.ContainersMemoryBytes), 0)) //nolint:gosec // non-negative
+			}
 		}
 		resp.Servers = append(resp.Servers, srv)
 	}
