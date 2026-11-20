@@ -239,7 +239,7 @@ func rootCmd() *cobra.Command {
 	root.AddCommand(sessionCommands(a)...)
 	root.AddCommand(fleetCommands(a)...)
 	root.AddCommand(actionCommands(a)...)
-	root.AddCommand(dockerCommand(a))
+	root.AddCommand(dockerCommand(a), timeCommand(a), swapCommand(a))
 	root.AddCommand(&cobra.Command{
 		Use: "version", Short: "Print version information", Args: cobra.NoArgs,
 		Run: func(cmd *cobra.Command, _ []string) { cmd.Println(version.String("smctl")) },

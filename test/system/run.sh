@@ -169,6 +169,23 @@ for d in $distros; do
     check "the process is gone" retry 10 sh -c "! docker exec $name kill -0 $pid"
     check "PID 1 is refused" sh -c "! docker exec sm-cp smctl processes kill $d 1 --yes"
 
+    check "time status" sh -c "docker exec sm-cp smctl time status $d | grep -q '^time zone'"
+    # Etc/GMT: a real change with no offset. The containers share the Docker VM's kernel
+    # clock, and the kernel's first time-zone call since boot can warp it (on a real
+    # server systemd makes that call at boot).
+    check "set the time zone through the helper" smctl time set-timezone "$d" Etc/GMT
+    check "the time zone really changed" sh -c "docker exec $name readlink /etc/localtime | grep -q 'Etc/GMT\$'"
+    check "swap status" sh -c "docker exec sm-cp smctl swap status $d | grep -q '^swappiness'"
+    check "the swap unit ships with the package" docker exec "$name" test -f /usr/lib/systemd/system/var-lib-smswap-swapfile.swap
+    # systemd-sysctl does not run in containers, so the value is saved but not applied;
+    # either outcome must be reported, and the setting must be where sysctl.d finds it.
+    check "set swappiness through the helper" sh -c "
+        out=\$(docker exec sm-cp smctl swap swappiness $d 15 --yes 2>&1) || echo \"\$out\" | grep -q 'saved and applies at boot'"
+    check "swappiness is persisted in sysctl.d" docker exec "$name" grep -q 'vm.swappiness = 15' /etc/sysctl.d/90-sm-swappiness.conf
+    # The containers' root filesystem is overlayfs, where swapfiles are not supported.
+    check "swapfile on overlayfs is refused cleanly" sh -c "
+        docker exec sm-cp smctl swap create $d 64M --yes 2>&1 | grep -q 'ext4 and xfs'"
+
     # Upgrade from a version that kept the command key in /etc/sm-agent: simulate that
     # layout, reinstall the package, and check the key is migrated exactly once.
     case "$fmt" in

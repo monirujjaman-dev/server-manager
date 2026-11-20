@@ -98,6 +98,17 @@ func ActionLabel(req *agentv1.ActionRequest) string {
 			label += " (with its volumes)"
 		}
 		return label
+	case *agentv1.ActionRequest_SwapConfigure:
+		c := a.SwapConfigure
+		op := strings.ToLower(strings.TrimPrefix(c.GetOperation().String(), "SWAP_OPERATION_"))
+		if c.GetSizeMib() > 0 {
+			return fmt.Sprintf("swap.%s %d MiB", op, c.GetSizeMib())
+		}
+		return "swap." + op
+	case *agentv1.ActionRequest_SwapSetSwappiness:
+		return fmt.Sprintf("swap.set_swappiness %d", a.SwapSetSwappiness.GetSwappiness())
+	case *agentv1.ActionRequest_TimeSetTimezone:
+		return info.Name + " " + a.TimeSetTimezone.GetTimezone()
 	case *agentv1.ActionRequest_DockerPrune:
 		p := a.DockerPrune
 		label := info.Name + " " + strings.ToLower(strings.ReplaceAll(strings.TrimPrefix(p.GetTarget().String(), "DOCKER_PRUNE_TARGET_"), "_", "-"))

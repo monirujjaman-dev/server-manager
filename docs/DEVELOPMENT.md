@@ -92,6 +92,9 @@ smctl docker logs web-1 app --since 1h --follow
 smctl docker stats web-1
 smctl docker prune web-1 images --all-images                # medium risk: type "web-1" to confirm
 smctl docker rm web-1 old-job                               # admin; high risk, step-up
+smctl time set-timezone --group staging Europe/Berlin       # bulk, low risk
+smctl swap create web-1 2G                                  # medium risk: type "web-1" to confirm
+smctl swap swappiness web-1 10
 smctl enroll create-token --name web-2 --group production  # admin; asks for a fresh MFA code if needed
 smctl servers revoke web-2 --reason "decommissioned"       # admin; high risk: type "web-2" to confirm
 smctl audit list                                           # global admin

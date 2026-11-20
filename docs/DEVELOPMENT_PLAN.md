@@ -111,8 +111,8 @@ with host facts), and stream termination on revocation or certificate expiry.
 |---|------|-----------|--------|
 | 2.1 | Module **docker**: containers, images, volumes, networks, logs, stats, start/stop/restart, remove, prune (via `sm-privd`) | Full container lifecycle from the CLI; container stats in dashboard | ✅ `smctl docker ps/start/stop/restart/rm/logs/stats/images/volumes/networks/prune`, all in the privileged helper; running containers and their memory in `smctl dashboard` |
 | 2.2 | Module **disk**: usage per mount, largest files/dirs, cleanup tasks (journal vacuum, package cache, old kernels, Docker prune) with dry-run | Dry run shows the bytes to be freed; apply frees them | ⏳ |
-| 2.3 | Module **swap**: create/resize/remove swapfile, fstab update, swappiness | Swap survives reboot; removal is clean | ⏳ |
-| 2.4 | Module **time**: timezone, NTP status/toggle (timedate1 D-Bus) | Bulk-set timezone on a server group | ⏳ |
+| 2.3 | Module **swap**: create/resize/remove swapfile, fstab update, swappiness | Swap survives reboot; removal is clean | ✅ `smctl swap status/create/resize/remove/swappiness`; one managed swapfile activated by a systemd swap unit (systemd does swapon, so no `CAP_SYS_ADMIN`); swappiness persisted in `/etc/sysctl.d` |
+| 2.4 | Module **time**: timezone, NTP status/toggle (timedate1 D-Bus) | Bulk-set timezone on a server group | ✅ `smctl time set-timezone --group staging Europe/Berlin`, `smctl time ntp`, `smctl time status` (timedated over D-Bus) |
 | 2.5 | Module **updates**: pending packages, security-only install, reboot-required flag | `smctl updates apply --security --group staging` | ⏳ |
 | 2.6 | Bulk actions on server groups/labels with concurrency limit and per-server results | Restart a service on 20 servers, 5 at a time | ✅ `smctl services restart --group staging nginx --parallel 5` (also `--all` and `web-1,web-2`); per-server output and a summary; labels follow once servers can be labelled |
 | 2.7 | **TUI** (`smctl ui`): fleet overview, server detail, services, processes, containers, logs | All phase 1–2 features usable without typing commands | ⏳ |
@@ -159,7 +159,23 @@ following symlinks and never replaces an existing trust key). The trust files ar
 through the path that was checked, must be small regular files, and are written through
 exclusively created temporary files into a directory the writer controls.
 
-Planned order for the rest of the phase: disk/swap/time
+Notes on 2.3/2.4: the helper manages only `/var/lib/smswap/swapfile` (fixed path, never
+caller-supplied); other swap devices are shown but never changed. It writes only its
+state directory: the package ships the swap unit (`var-lib-smswap-swapfile.swap`,
+conditional on the file existing) and links `/etc/sysctl.d/90-sm-swappiness.conf` into
+`/var/lib/smswap`, and the helper enables/starts the unit over D-Bus, so systemd does
+swapon and the helper needs neither `CAP_SYS_ADMIN` nor write access to `/etc`. It writes
+the swap header itself (no `mkswap`), refuses filesystems other than ext4/xfs, keeps the
+larger of 1 GiB and 10 % of the filesystem free, checks space before a resize tears
+anything down, undoes a create whose activation fails, serialises swap changes, and
+refuses to turn swap off when the swapped-out memory would not fit in RAM. Swappiness is
+applied by restarting `systemd-sysctl` and then verified; if it does not take effect the
+operator is told it is only saved. Turning NTP off is medium risk (drifting clocks break
+signed commands). The system tests run on overlayfs in containers without
+systemd-sysctl, so they check the clean refusals there; activation is covered by unit
+tests with a fake systemd.
+
+Planned order for the rest of the phase: disk
 (2.2–2.4), updates (2.5), control-plane deployment and workstation onboarding
 (2.9–2.12), then the TUI (2.7) on top of all of them.
 

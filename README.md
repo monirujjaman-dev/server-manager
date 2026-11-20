@@ -50,8 +50,8 @@ See the [development guide](docs/DEVELOPMENT.md) for the database, tests and VMs
   install script, tested in systemd containers on Ubuntu 24.04 and Rocky 9.
 - **Phase 2 (operations):** in progress — bulk actions
   (`smctl services restart --group staging nginx`, `--all`, `web-1,web-2`), typed
-  confirmation for medium- and higher-risk actions, and Docker (`smctl docker ps`,
-  `start/stop/restart/rm`, `logs`, `stats`, `images/volumes/networks`, `prune`) are
-  done; disk cleanup, swap, timezone, updates, TUI and control-plane deployment are
-  next. See the
+  confirmation for medium- and higher-risk actions, Docker (`smctl docker ps`,
+  `start/stop/restart/rm`, `logs`, `stats`, `images/volumes/networks`, `prune`), time
+  zone and NTP (`smctl time`) and swap (`smctl swap`) are done; disk cleanup, updates,
+  TUI and control-plane deployment are next. See the
   [development plan](docs/DEVELOPMENT_PLAN.md).

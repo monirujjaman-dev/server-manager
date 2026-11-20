@@ -21,6 +21,14 @@ contents:
   - src: deploy/systemd/sm-agent-privd.service
     dst: /usr/lib/systemd/system/sm-agent-privd.service
     file_info: { mode: 0644 }
+  # Swap: the privileged helper writes only in /var/lib/smswap; the unit and the sysctl
+  # entry point there, so it needs no write access to /etc.
+  - src: deploy/systemd/var-lib-smswap-swapfile.swap
+    dst: /usr/lib/systemd/system/var-lib-smswap-swapfile.swap
+    file_info: { mode: 0644 }
+  - src: /var/lib/smswap/swappiness.conf
+    dst: /etc/sysctl.d/90-sm-swappiness.conf
+    type: symlink
 scripts:
   preinstall: deploy/packaging/scripts/agent-preinstall.sh
   postinstall: deploy/packaging/scripts/agent-postinstall.sh

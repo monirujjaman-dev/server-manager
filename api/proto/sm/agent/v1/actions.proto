@@ -52,6 +52,12 @@ message ActionRequest {
     DockerVolumeListRequest docker_volume_list = 13;
     DockerNetworkListRequest docker_network_list = 14;
     DockerPruneRequest docker_prune = 15;
+    TimeStatusRequest time_status = 16;
+    TimeSetTimezoneRequest time_set_timezone = 17;
+    TimeSetNTPRequest time_set_ntp = 18;
+    SwapStatusRequest swap_status = 19;
+    SwapConfigureRequest swap_configure = 20;
+    SwapSetSwappinessRequest swap_set_swappiness = 21;
   }
 }
 
@@ -91,6 +97,12 @@ message ActionResult {
     DockerVolumeListResult docker_volume_list = 13;
     DockerNetworkListResult docker_network_list = 14;
     DockerPruneResult docker_prune = 15;
+    TimeStatusResult time_status = 16;
+    TimeStatusResult time_set_timezone = 17;
+    TimeStatusResult time_set_ntp = 18;
+    SwapStatusResult swap_status = 19;
+    SwapStatusResult swap_configure = 20;
+    SwapStatusResult swap_set_swappiness = 21;
   }
 }
 
@@ -489,6 +501,87 @@ message DockerPruneResult {
   repeated string deleted = 1;
   uint32 deleted_count = 2;
   uint64 space_reclaimed_bytes = 3;
+}
+
+// ---------------------------------------------------------------------------
+// time.* (systemd-timedated over D-Bus). Status is read by the agent; changes run in
+// the privileged helper.
+// ---------------------------------------------------------------------------
+
+message TimeStatusRequest {}
+
+message TimeStatusResult {
+  // IANA name, e.g. "Europe/Berlin" or "UTC".
+  string timezone = 1;
+  // The RTC is kept in local time instead of UTC (usually a misconfiguration).
+  bool local_rtc = 2;
+  // NTP synchronisation is enabled (systemd-timesyncd or chronyd).
+  bool ntp_enabled = 3;
+  // The clock is currently synchronised.
+  bool ntp_synchronized = 4;
+  // An NTP service is available to enable.
+  bool can_ntp = 5;
+  google.protobuf.Timestamp time = 6;
+}
+
+message TimeSetTimezoneRequest {
+  // IANA name: letters, digits, "_", "-", "+", at most three "/"-separated parts,
+  // at most 64 bytes, e.g. "America/Argentina/Buenos_Aires".
+  string timezone = 1;
+}
+
+message TimeSetNTPRequest {
+  bool enabled = 1;
+}
+
+// ---------------------------------------------------------------------------
+// swap.* (read by the agent; changes in the privileged helper). The helper manages
+// one swapfile at a fixed path, activated by a systemd swap unit so it survives
+// reboots; other swap devices are reported but never changed.
+// ---------------------------------------------------------------------------
+
+message SwapStatusRequest {}
+
+message SwapStatusResult {
+  repeated SwapDevice devices = 1;
+  // vm.swappiness, 0-200.
+  uint32 swappiness = 2;
+  // Path of the managed swapfile.
+  string managed_path = 3;
+  // Size of the managed swapfile; 0 if there is none.
+  uint64 managed_size_bytes = 4;
+  // The managed swapfile is in use.
+  bool managed_active = 5;
+}
+
+message SwapDevice {
+  string path = 1;
+  // "file" or "partition".
+  string type = 2;
+  uint64 size_bytes = 3;
+  uint64 used_bytes = 4;
+  int32 priority = 5;
+}
+
+enum SwapOperation {
+  SWAP_OPERATION_UNSPECIFIED = 0;
+  // Create the managed swapfile (fails if it exists).
+  SWAP_OPERATION_CREATE = 1;
+  // Replace it with one of a new size (it is turned off first).
+  SWAP_OPERATION_RESIZE = 2;
+  // Turn it off and delete it.
+  SWAP_OPERATION_REMOVE = 3;
+}
+
+message SwapConfigureRequest {
+  SwapOperation operation = 1;
+  // Create and resize: size in MiB, 64 to 65536.
+  uint32 size_mib = 2;
+}
+
+message SwapSetSwappinessRequest {
+  // 0-100. Persisted in /etc/sysctl.d and applied immediately.
+  uint32 swappiness = 1;
 }
 
 // ---------------------------------------------------------------------------

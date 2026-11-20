@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 
 	agentv1 "github.com/monirujjaman-dev/server-manager/gen/sm/agent/v1"
 )
@@ -92,6 +93,23 @@ func Describe(req *agentv1.ActionRequest) (Info, error) {
 		return Info{Name: "docker.networks", Risk: RiskRead, Privileged: true}, nil
 	case *agentv1.ActionRequest_DockerPrune:
 		return Info{Name: "docker.prune", Risk: pruneRisk(a.DockerPrune), Privileged: true}, nil
+	case *agentv1.ActionRequest_TimeStatus:
+		return Info{Name: "time.status", Risk: RiskRead}, nil
+	case *agentv1.ActionRequest_TimeSetTimezone:
+		return Info{Name: "time.set_timezone", Risk: RiskLow, Privileged: true}, nil
+	case *agentv1.ActionRequest_TimeSetNtp:
+		// Turning NTP off lets clocks drift until signed commands (60 s validity) and
+		// certificate checks start failing, so that direction asks for confirmation.
+		if !a.TimeSetNtp.GetEnabled() {
+			return Info{Name: "time.set_ntp", Risk: RiskMedium, Privileged: true}, nil
+		}
+		return Info{Name: "time.set_ntp", Risk: RiskLow, Privileged: true}, nil
+	case *agentv1.ActionRequest_SwapStatus:
+		return Info{Name: "swap.status", Risk: RiskRead}, nil
+	case *agentv1.ActionRequest_SwapConfigure:
+		return Info{Name: "swap.configure", Risk: RiskMedium, Privileged: true}, nil
+	case *agentv1.ActionRequest_SwapSetSwappiness:
+		return Info{Name: "swap.set_swappiness", Risk: RiskMedium, Privileged: true}, nil
 	case nil:
 		return Info{}, errors.New("empty action")
 	default:
@@ -150,6 +168,26 @@ func Validate(req *agentv1.ActionRequest) error {
 		}
 	case *agentv1.ActionRequest_DockerContainerControl:
 		return validateDockerControl(a.DockerContainerControl)
+	case *agentv1.ActionRequest_TimeSetTimezone:
+		return ValidateTimezone(a.TimeSetTimezone.GetTimezone())
+	case *agentv1.ActionRequest_SwapConfigure:
+		c := a.SwapConfigure
+		switch c.GetOperation() {
+		case agentv1.SwapOperation_SWAP_OPERATION_CREATE, agentv1.SwapOperation_SWAP_OPERATION_RESIZE:
+			if c.GetSizeMib() < MinSwapMiB || c.GetSizeMib() > MaxSwapMiB {
+				return fmt.Errorf("swap size must be %d-%d MiB", MinSwapMiB, MaxSwapMiB)
+			}
+		case agentv1.SwapOperation_SWAP_OPERATION_REMOVE:
+			if c.GetSizeMib() != 0 {
+				return errors.New("size does not apply to remove")
+			}
+		default:
+			return errors.New("invalid swap operation")
+		}
+	case *agentv1.ActionRequest_SwapSetSwappiness:
+		if a.SwapSetSwappiness.GetSwappiness() > 100 {
+			return errors.New("swappiness must be 0-100")
+		}
 	case *agentv1.ActionRequest_DockerLogs:
 		if err := ValidateContainerRef(a.DockerLogs.GetContainer()); err != nil {
 			return err
@@ -195,6 +233,31 @@ func pruneRisk(p *agentv1.DockerPruneRequest) Risk {
 	default:
 		return RiskCritical
 	}
+}
+
+// Swap size limits for the managed swapfile.
+const (
+	MinSwapMiB = 64
+	MaxSwapMiB = 64 << 10
+)
+
+// tzPartRe is one component of an IANA time zone name ("America", "Buenos_Aires",
+// "GMT+3"). No "." or "..", so a name can never leave /usr/share/zoneinfo.
+var tzPartRe = regexp.MustCompile(`^[A-Za-z0-9_+-]{1,30}$`)
+
+// ValidateTimezone checks the shape of an IANA time zone name; timedated checks that it
+// exists.
+func ValidateTimezone(tz string) error {
+	parts := strings.Split(tz, "/")
+	if len(tz) > 64 || len(parts) > 3 {
+		return fmt.Errorf("invalid time zone %q", tz)
+	}
+	for _, p := range parts {
+		if !tzPartRe.MatchString(p) || p[0] == '-' || p[0] == '+' {
+			return fmt.Errorf("invalid time zone %q (want e.g. Europe/Berlin or UTC)", tz)
+		}
+	}
+	return nil
 }
 
 // containerRe matches Docker container names and (prefixes of) hex IDs. It also keeps

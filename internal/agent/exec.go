@@ -155,6 +155,18 @@ func (a *Agent) runLocal(ctx context.Context, req *agentv1.ActionRequest) (*agen
 			return nil, err
 		}
 		return &agentv1.ActionResult{Result: &agentv1.ActionResult_AuthLog{AuthLog: res}}, nil
+	case *agentv1.ActionRequest_TimeStatus:
+		res, err := modules.TimeStatus(ctx, a.timedate)
+		if err != nil {
+			return nil, err
+		}
+		return &agentv1.ActionResult{Result: &agentv1.ActionResult_TimeStatus{TimeStatus: res}}, nil
+	case *agentv1.ActionRequest_SwapStatus:
+		res, err := a.host.SwapStatus()
+		if err != nil {
+			return nil, err
+		}
+		return &agentv1.ActionResult{Result: &agentv1.ActionResult_SwapStatus{SwapStatus: res}}, nil
 	default:
 		return nil, fmt.Errorf("unsupported action %T", r)
 	}
