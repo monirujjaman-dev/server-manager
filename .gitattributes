@@ -1,0 +1,17 @@
+# Keep LF line endings on every platform. On Windows, Git would otherwise check text files
+# out with CRLF, and shell scripts then fail in Git Bash, WSL, containers and on servers
+# ("$'\r': command not found").
+* text=auto eol=lf
+
+*.sh text eol=lf
+*.go text eol=lf
+*.proto text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.service text eol=lf
+Makefile text eol=lf
+*.Dockerfile text eol=lf
+
+# Generated code: diff it, but keep it out of language statistics and review noise.
+gen/** linguist-generated=true
+internal/server/store/db/** linguist-generated=true

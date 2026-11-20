@@ -67,10 +67,11 @@ flowchart TB
     A3 -- "gRPC over mTLS (agent dials out)" --> API
 ```
 
-The control plane sits on a **private network** (WireGuard, or a self-hosted
-Headscale/Tailscale tailnet). Agents and operators reach it through that network,
-so neither the control plane nor any managed server exposes a management port to
-the public internet.
+The control plane runs on a small, **always-on cloud VM**; operators run `smctl` on their
+own Windows, macOS or Linux workstation (see [REQUIREMENTS.md](REQUIREMENTS.md) §1). Managed
+servers expose no management port. The **agent gateway** may face the internet because it
+accepts only recorded mTLS client certificates; the **operator API** stays on a private
+network (WireGuard, Headscale/Tailscale) or behind an IP allowlist (ADR 0009).
 
 ### Components
 
@@ -79,7 +80,7 @@ the public internet.
 | Control plane | `sm-server` | 1 management host (HA later) | Public API for operators, agent gateway, authentication, RBAC, job scheduling, audit log, alerting, PKI. |
 | Agent | `sm-agent` | Every managed server, unprivileged user `smagent` | Keeps the connection to the control plane, collects metrics and logs, runs read-only modules, forwards privileged actions to `sm-privd`. |
 | Privileged helper | `sm-privd` | Every managed server, root, local only | Runs a fixed, typed set of privileged actions (firewall, swap, services, packages …). No network access; listens only on a local UNIX socket. |
-| Console | `smctl` | Operator workstation | CLI for scripting and a full-screen TUI for interactive use. |
+| Console | `smctl` | Operator workstation (Windows, macOS, Linux) | CLI for scripting and a full-screen TUI for interactive use. |
 | Web UI | (phase 5) | Browser | Same API as `smctl`. |
 
 `sm-agent` and `sm-privd` ship as **one binary** with two subcommands and two

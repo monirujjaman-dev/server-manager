@@ -14,7 +14,7 @@ Every phase ends with a tagged release that is usable on real servers.
 |-------|------|----------|---------|---------|
 | 0 | Foundations | 2 weeks | `v0.0.x` | Repo, CI, protobuf, PKI, dev environment |
 | 1 | MVP: connect, observe, control | 5 weeks | `v0.1.0` | Enroll servers, live dashboard, services, processes, logs, audit, CLI |
-| 2 | Operations | 4 weeks | `v0.2.0` | Docker, disk cleanup, swap, timezone, updates, TUI |
+| 2 | Operations | 5 weeks | `v0.2.0` | Docker, disk cleanup, swap, timezone, updates, TUI, control-plane deployment and workstation onboarding |
 | 3 | Security | 4 weeks | `v0.3.0` | Firewall with rollback, banned IPs, security checks, alerts, MFA step-up |
 | 4 | Advanced | 5 weeks | `v0.4.0` | Databases, domains & TLS, traffic analytics, backups, secrets |
 | 5 | Web UI & hardening | 5 weeks | `v1.0.0` | Web UI, external security review, packaging, docs |
@@ -29,7 +29,7 @@ gantt
     section Phases
     Phase 0 Foundations        :p0, 2026-11-23, 2w
     Phase 1 MVP                :p1, after p0, 5w
-    Phase 2 Operations         :p2, after p1, 4w
+    Phase 2 Operations         :p2, after p1, 5w
     Phase 3 Security           :p3, after p2, 4w
     Phase 4 Advanced           :p4, after p3, 5w
     Phase 5 Web UI & hardening :p5, after p4, 5w
@@ -117,6 +117,10 @@ with host facts), and stream termination on revocation or certificate expiry.
 | 2.6 | Bulk actions on server groups/labels with concurrency limit and per-server results | Restart a service on 20 servers, 5 at a time |
 | 2.7 | **TUI** (`smctl ui`): fleet overview, server detail, services, processes, containers, logs | All phase 1–2 features usable without typing commands |
 | 2.8 | Confirmation prompts by risk level (typed server name for medium+) | Cannot accidentally prune volumes |
+| 2.9 | Production compose bundle for the control plane (sm-server + PostgreSQL + VictoriaMetrics) and a "small VM" quickstart | One command brings up a control plane on a fresh cloud VM ([REQUIREMENTS](REQUIREMENTS.md) N-03) |
+| 2.10 | Enrollment reachable by new servers while the operator API stays private (separate listener or unauthenticated path on the agent port) | New servers enroll with :8444 closed to the internet (N-02, ADR 0009) |
+| 2.11 | `smctl login --pin` (trust on first use like `sm-agent enroll`) and named contexts for several control planes | Laptop onboarding without copying `root.crt`; switch staging/production with one flag (W-02, W-03) |
+| 2.12 | Windows console polish: no password echo under Git Bash/mintty, virtual-terminal mode for `--watch` in legacy consoles | Login and dashboard work in Windows Terminal, PowerShell, cmd and Git Bash (W-04, W-05) |
 
 **Exit criteria (v0.2.0):** daily server operations done entirely through `smctl`/TUI.
 
@@ -168,6 +172,7 @@ with host facts), and stream termination on revocation or certificate expiry.
 | 5.5 | External or peer security review / penetration test | All high/critical findings fixed |
 | 5.6 | Docs: install guide, operator guide, runbooks (CA rotation, restore, lost MFA), API reference | New user can install from docs alone |
 | 5.7 | Release engineering: signed binaries, SBOM, packages, checksums | `v1.0.0` published |
+| 5.8 | `smctl` distribution for workstations: Homebrew tap, Scoop/winget manifests; session token in the OS keychain | Install and upgrade `smctl` with the platform's package manager (W-06, W-07) |
 
 ---
 

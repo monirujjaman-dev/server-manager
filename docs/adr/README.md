@@ -12,3 +12,4 @@ Each ADR records one significant decision: its context, the decision and its con
 | [0006](0006-postgresql-and-victoriametrics.md) | PostgreSQL for state and VictoriaMetrics for time series |
 | [0007](0007-nftables-firewall-backend.md) | nftables as the primary firewall backend |
 | [0008](0008-crowdsec-for-banned-ips.md) | CrowdSec preferred over fail2ban for banned IPs |
+| [0009](0009-network-exposure.md) | Network exposure of the control plane |

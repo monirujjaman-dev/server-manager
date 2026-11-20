@@ -33,6 +33,7 @@ See the [development guide](docs/DEVELOPMENT.md) for the database, tests and VMs
 
 ## Documentation
 
+- [Requirements](docs/REQUIREMENTS.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Development plan](docs/DEVELOPMENT_PLAN.md)
 - [Architecture decision records](docs/adr/README.md)
