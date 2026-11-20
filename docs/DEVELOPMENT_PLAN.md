@@ -107,20 +107,30 @@ with host facts), and stream termination on revocation or certificate expiry.
 
 ### Phase 2 — Operations (4 weeks)
 
-| # | Task | Done when |
-|---|------|-----------|
-| 2.1 | Module **docker**: containers, images, volumes, networks, logs, stats, start/stop/restart, remove, prune (via `sm-privd`) | Full container lifecycle from the CLI; container stats in dashboard |
-| 2.2 | Module **disk**: usage per mount, largest files/dirs, cleanup tasks (journal vacuum, package cache, old kernels, Docker prune) with dry-run | Dry run shows the bytes to be freed; apply frees them |
-| 2.3 | Module **swap**: create/resize/remove swapfile, fstab update, swappiness | Swap survives reboot; removal is clean |
-| 2.4 | Module **time**: timezone, NTP status/toggle (timedate1 D-Bus) | Bulk-set timezone on a server group |
-| 2.5 | Module **updates**: pending packages, security-only install, reboot-required flag | `smctl updates apply --security --group staging` |
-| 2.6 | Bulk actions on server groups/labels with concurrency limit and per-server results | Restart a service on 20 servers, 5 at a time |
-| 2.7 | **TUI** (`smctl ui`): fleet overview, server detail, services, processes, containers, logs | All phase 1–2 features usable without typing commands |
-| 2.8 | Confirmation prompts by risk level (typed server name for medium+) | Cannot accidentally prune volumes |
-| 2.9 | Production compose bundle for the control plane (sm-server + PostgreSQL + VictoriaMetrics) and a "small VM" quickstart | One command brings up a control plane on a fresh cloud VM ([REQUIREMENTS](REQUIREMENTS.md) N-03) |
-| 2.10 | Enrollment reachable by new servers while the operator API stays private (separate listener or unauthenticated path on the agent port) | New servers enroll with :8444 closed to the internet (N-02, ADR 0009) |
-| 2.11 | `smctl login --pin` (trust on first use like `sm-agent enroll`) and named contexts for several control planes | Laptop onboarding without copying `root.crt`; switch staging/production with one flag (W-02, W-03) |
-| 2.12 | Windows console polish: no password echo under Git Bash/mintty, virtual-terminal mode for `--watch` in legacy consoles | Login and dashboard work in Windows Terminal, PowerShell, cmd and Git Bash (W-04, W-05) |
+| # | Task | Done when | Status |
+|---|------|-----------|--------|
+| 2.1 | Module **docker**: containers, images, volumes, networks, logs, stats, start/stop/restart, remove, prune (via `sm-privd`) | Full container lifecycle from the CLI; container stats in dashboard | ⏳ |
+| 2.2 | Module **disk**: usage per mount, largest files/dirs, cleanup tasks (journal vacuum, package cache, old kernels, Docker prune) with dry-run | Dry run shows the bytes to be freed; apply frees them | ⏳ |
+| 2.3 | Module **swap**: create/resize/remove swapfile, fstab update, swappiness | Swap survives reboot; removal is clean | ⏳ |
+| 2.4 | Module **time**: timezone, NTP status/toggle (timedate1 D-Bus) | Bulk-set timezone on a server group | ⏳ |
+| 2.5 | Module **updates**: pending packages, security-only install, reboot-required flag | `smctl updates apply --security --group staging` | ⏳ |
+| 2.6 | Bulk actions on server groups/labels with concurrency limit and per-server results | Restart a service on 20 servers, 5 at a time | ✅ `smctl services restart --group staging nginx --parallel 5` (also `--all` and `web-1,web-2`); per-server output and a summary; labels follow once servers can be labelled |
+| 2.7 | **TUI** (`smctl ui`): fleet overview, server detail, services, processes, containers, logs | All phase 1–2 features usable without typing commands | ⏳ |
+| 2.8 | Confirmation prompts by risk level (typed server name for medium+) | Cannot accidentally prune volumes | ✅ medium+ asks for the server name (group name, or server count for lists and `--all`); `--yes` for scripts; refused without a terminal |
+| 2.9 | Production compose bundle for the control plane (sm-server + PostgreSQL + VictoriaMetrics) and a "small VM" quickstart | One command brings up a control plane on a fresh cloud VM ([REQUIREMENTS](REQUIREMENTS.md) N-03) | ⏳ |
+| 2.10 | Enrollment reachable by new servers while the operator API stays private (separate listener or unauthenticated path on the agent port) | New servers enroll with :8444 closed to the internet (N-02, ADR 0009) | ⏳ |
+| 2.11 | `smctl login --pin` (trust on first use like `sm-agent enroll`) and named contexts for several control planes | Laptop onboarding without copying `root.crt`; switch staging/production with one flag (W-02, W-03) | ⏳ |
+| 2.12 | Windows console polish: no password echo under Git Bash/mintty, virtual-terminal mode for `--watch` in legacy consoles | Login and dashboard work in Windows Terminal, PowerShell, cmd and Git Bash (W-04, W-05) | ⏳ |
+
+Notes on 2.6: bulk runs are orchestrated by `smctl` (`internal/ctl/bulk.go`) on top of
+the existing `ActionService.Run`, so every server still gets its own job, RBAC check,
+signature and audit record, and the control plane gained no new endpoint. The first
+server runs alone (a step-up prompt is answered once, and it acts as a canary), then up
+to `--parallel` (default 5, max 20) at a time. Offline servers are skipped unless
+`--include-offline`; an explicitly listed server you cannot see is an error rather than
+silently dropped. Planned order for the rest of the phase: docker (2.1), disk/swap/time
+(2.2–2.4), updates (2.5), control-plane deployment and workstation onboarding
+(2.9–2.12), then the TUI (2.7) on top of all of them.
 
 **Exit criteria (v0.2.0):** daily server operations done entirely through `smctl`/TUI.
 

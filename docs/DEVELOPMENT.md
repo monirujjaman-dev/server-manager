@@ -79,16 +79,22 @@ smctl whoami
 smctl dashboard --watch 5s
 smctl system info web-1
 smctl services restart web-1 nginx
+smctl services restart --group staging nginx --parallel 5   # bulk: every online server in a group
+smctl system info web-1,web-2                               # bulk: an explicit list (or --all)
 smctl processes list web-1 --sort mem --limit 20
-smctl processes kill web-1 1234 --start 567890 --yes     # medium risk: needs --yes
+smctl processes kill web-1 1234 --start 567890              # medium risk: type "web-1" to confirm
 smctl logs web-1 --unit nginx --priority err --since 2h
 smctl logs web-1 --unit nginx --follow
 smctl logins web-1 --failed
 smctl enroll create-token --name web-2 --group production  # admin; asks for a fresh MFA code if needed
-smctl servers revoke web-2 --reason "decommissioned" --yes # admin; high risk
+smctl servers revoke web-2 --reason "decommissioned"       # admin; high risk: type "web-2" to confirm
 smctl audit list                                           # global admin
 smctl logout
 ```
+
+Medium- and higher-risk actions ask you to type the server name (the group name for
+`--group`, the number of servers for a list or `--all`). Scripts pass `--yes`; without
+a terminal and without `--yes` the action is refused.
 
 Host-side admin commands (database access, no login) stay in `sm-server` for
 bootstrapping and break-glass use:

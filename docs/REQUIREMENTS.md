@@ -58,7 +58,7 @@ Status: ✅ done · 🟡 partial · ⏳ planned (phase).
 | F-13 | Security posture: SSH config, updates, open ports, score | ⏳ P3 | 3.5–3.6 |
 | F-14 | Domains and TLS certificates, DNS records | ⏳ P4 | 4.4–4.5 |
 | F-15 | Package updates (security only, reboot-required) | ⏳ P2 | 2.5 |
-| F-16 | Bulk actions on groups of servers | ⏳ P2 | 2.6 |
+| F-16 | Bulk actions on groups of servers | ✅ | `--group`, `--all` or `web-1,web-2` with `--parallel` (2.6) |
 | F-17 | Alerts (agent offline, disk, certificate expiry, login spikes) | ⏳ P3 | 3.8 |
 
 ## 3. Non-functional requirements

@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -49,6 +51,8 @@ type app struct {
 	serverURL, caFile string
 	yes               bool
 	wait              time.Duration
+	sel               ctl.Selector // --group, --all, --include-offline on bulk-capable commands
+	parallel          int
 }
 
 // client builds an API client from flags, falling back to the saved session.
@@ -75,30 +79,143 @@ func (a *app) client(cmd *cobra.Command, needLogin bool) (*ctl.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	var mu sync.Mutex // bulk runs may ask from several goroutines; prompt one at a time
 	c.StepUp = func() (string, error) {
+		mu.Lock()
+		defer mu.Unlock()
 		return ctl.ReadLine(cmd.ErrOrStderr(), "This action needs a fresh MFA code. Code: ")
 	}
 	return c, nil
 }
 
-// run executes one action and prints its result.
-func (a *app) run(cmd *cobra.Command, server string, req *agentv1.ActionRequest, print func(io.Writer, *agentv1.ActionResult) error) error {
+func (a *app) confirmer(cmd *cobra.Command) ctl.Confirmer {
+	return ctl.Confirmer{Yes: a.yes, Interactive: ctl.StdinIsTerminal(), Out: cmd.ErrOrStderr(), ReadLine: ctl.ReadLine}
+}
+
+const bulkHelp = `<servers> is a server name or ID, or a comma-separated list such as web-1,web-2.
+Instead of <servers>, --group runs on every server of a group and --all on every server
+you can see; offline servers are skipped unless --include-offline is given. The first
+server runs alone, then up to --parallel at a time.`
+
+// addBulkFlags lets a command run on several servers.
+func (a *app) addBulkFlags(cmd *cobra.Command) *cobra.Command {
+	f := cmd.Flags()
+	f.StringVarP(&a.sel.Group, "group", "g", "", "run on every server in this group instead of <servers>")
+	f.BoolVar(&a.sel.All, "all", false, "run on every server you can see instead of <servers>")
+	f.BoolVar(&a.sel.IncludeOffline, "include-offline", false, "also queue the action for offline servers")
+	f.IntVar(&a.parallel, "parallel", ctl.DefaultParallel, fmt.Sprintf("servers to run on at the same time (1-%d)", ctl.MaxParallel))
+	cmd.MarkFlagsMutuallyExclusive("group", "all")
+	cmd.Long = cmd.Short + ".\n\n" + bulkHelp
+	return cmd
+}
+
+// serverArgs expects n positional arguments, the first being <servers>, which is left
+// out when --group or --all selects the servers.
+func (a *app) serverArgs(n int) cobra.PositionalArgs {
+	return func(cmd *cobra.Command, args []string) error {
+		if a.sel.Group != "" || a.sel.All {
+			if len(args) != n-1 {
+				return fmt.Errorf("with --group or --all, give %d argument(s) and no server; got %d", n-1, len(args))
+			}
+			return nil
+		}
+		return cobra.ExactArgs(n)(cmd, args)
+	}
+}
+
+// splitServer separates <servers> from the other arguments.
+func (a *app) splitServer(args []string) (string, []string) {
+	if a.sel.Group != "" || a.sel.All {
+		return "", args
+	}
+	return args[0], args[1:]
+}
+
+// runOne is run for commands that only make sense on a single server.
+func (a *app) runOne(cmd *cobra.Command, server string, req *agentv1.ActionRequest, print func(io.Writer, *agentv1.ActionResult) error) error {
+	if strings.Contains(server, ",") {
+		return errors.New("this command runs on one server at a time")
+	}
+	return a.run(cmd, server, req, print)
+}
+
+// run executes an action on the servers named by arg (or selected by --group/--all)
+// and prints the results.
+func (a *app) run(cmd *cobra.Command, arg string, req *agentv1.ActionRequest, print func(io.Writer, *agentv1.ActionResult) error) error {
 	info, err := command.Describe(req)
 	if err != nil {
 		return err
 	}
-	if info.Risk != command.RiskRead && info.Risk != command.RiskLow && !a.yes {
-		return fmt.Errorf("%s is a %s-risk action; repeat with --yes to confirm", info.Name, info.Risk)
+	sel := a.sel
+	if arg != "" {
+		if sel.Names, err = ctl.ParseServerList(arg); err != nil {
+			return err
+		}
+	}
+	if sel.Bulk() {
+		return a.runBulk(cmd, sel, info, req, print)
+	}
+	if err := a.confirmer(cmd).Confirm(ctl.Confirmation{
+		Action: ctl.ActionLabel(req), Risk: info.Risk, Servers: sel.Names, Expect: sel.Names[0],
+	}); err != nil {
+		return err
 	}
 	c, err := a.client(cmd, true)
 	if err != nil {
 		return err
 	}
-	job, err := c.Run(cmd.Context(), server, req, a.wait)
+	job, err := c.Run(cmd.Context(), arg, req, a.wait)
 	if err != nil {
 		return err
 	}
 	return print(cmd.OutOrStdout(), job.GetResult())
+}
+
+// runBulk resolves the selector, confirms once and runs the action on every target.
+func (a *app) runBulk(cmd *cobra.Command, sel ctl.Selector, info command.Info, req *agentv1.ActionRequest, print func(io.Writer, *agentv1.ActionResult) error) error {
+	if a.parallel < 1 || a.parallel > ctl.MaxParallel {
+		return fmt.Errorf("--parallel must be between 1 and %d", ctl.MaxParallel)
+	}
+	c, err := a.client(cmd, true)
+	if err != nil {
+		return err
+	}
+	resp, err := c.Fleet.ListServers(cmd.Context(), connect.NewRequest(&operatorv1.ListServersRequest{}))
+	if err != nil {
+		return err
+	}
+	targets, skipped, err := sel.Resolve(resp.Msg.GetServers())
+	if err != nil {
+		return err
+	}
+	names := make([]string, len(targets))
+	for i, t := range targets {
+		names[i] = t.Name
+	}
+	if err := a.confirmer(cmd).Confirm(ctl.Confirmation{
+		Action: ctl.ActionLabel(req), Risk: info.Risk, Servers: names, Expect: ctl.ExpectFor(sel, names),
+	}); err != nil {
+		return err
+	}
+	out, errOut := cmd.OutOrStdout(), cmd.ErrOrStderr()
+	results := ctl.RunBulk(cmd.Context(), targets, a.parallel, func(ctx context.Context, server string) ctl.BulkResult {
+		job, err := c.Run(ctx, server, req, a.wait)
+		r := ctl.BulkResult{Job: job, Err: err}
+		if err == nil {
+			var buf bytes.Buffer
+			r.Err = print(&buf, job.GetResult())
+			r.Output = buf.Bytes()
+		}
+		return r
+	}, func(r ctl.BulkResult) {
+		if r.Err != nil {
+			_, _ = fmt.Fprintf(errOut, "== %s: failed: %s\n", r.Server, r.Err)
+			return
+		}
+		_, _ = fmt.Fprintf(out, "== %s\n%s", r.Server, r.Output)
+	})
+	_, _ = fmt.Fprintln(out)
+	return ctl.PrintBulkSummary(out, results, skipped)
 }
 
 func rootCmd() *cobra.Command {
@@ -116,7 +233,7 @@ func rootCmd() *cobra.Command {
 	pf := root.PersistentFlags()
 	pf.StringVar(&a.serverURL, "server", os.Getenv("SMCTL_SERVER"), "control-plane API URL, e.g. https://cp.internal:8444 (default: from login)")
 	pf.StringVar(&a.caFile, "ca-file", os.Getenv("SMCTL_CA_FILE"), "CA certificate of the control plane (default: from login)")
-	pf.BoolVarP(&a.yes, "yes", "y", false, "confirm a medium- or high-risk action")
+	pf.BoolVarP(&a.yes, "yes", "y", false, "skip the typed confirmation of medium- and higher-risk actions")
 	pf.DurationVar(&a.wait, "timeout", 2*time.Minute, "how long to wait for a result")
 
 	root.AddCommand(sessionCommands(a)...)
@@ -283,8 +400,10 @@ func fleetCommands(a *app) []*cobra.Command {
 	revoke := &cobra.Command{
 		Use: "revoke <server>", Short: "Revoke a server (admin, step-up)", Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !a.yes {
-				return errors.New("revoking is a high-risk action; repeat with --yes to confirm")
+			if err := a.confirmer(cmd).Confirm(ctl.Confirmation{
+				Action: "servers.revoke", Risk: command.RiskHigh, Servers: args[:1], Expect: args[0],
+			}); err != nil {
+				return err
 			}
 			c, err := a.client(cmd, true)
 			if err != nil {
@@ -375,21 +494,23 @@ func fleetCommands(a *app) []*cobra.Command {
 
 func actionCommands(a *app) []*cobra.Command {
 	system := &cobra.Command{Use: "system", Short: "Inspect a server"}
-	system.AddCommand(&cobra.Command{
-		Use: "info <server>", Short: "Show uptime, load, memory and disks", Args: cobra.ExactArgs(1),
+	system.AddCommand(a.addBulkFlags(&cobra.Command{
+		Use: "info <servers>", Short: "Show uptime, load, memory and disks", Args: a.serverArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return a.run(cmd, args[0], &agentv1.ActionRequest{Action: &agentv1.ActionRequest_SystemInfo{SystemInfo: &agentv1.SystemInfoRequest{}}}, ctl.PrintSystemInfo)
+			server, _ := a.splitServer(args)
+			return a.run(cmd, server, &agentv1.ActionRequest{Action: &agentv1.ActionRequest_SystemInfo{SystemInfo: &agentv1.SystemInfoRequest{}}}, ctl.PrintSystemInfo)
 		},
-	})
+	}))
 
 	services := &cobra.Command{Use: "services", Short: "List and control systemd services"}
 	var filter string
-	slist := &cobra.Command{
-		Use: "list <server>", Short: "List services", Args: cobra.ExactArgs(1),
+	slist := a.addBulkFlags(&cobra.Command{
+		Use: "list <servers>", Short: "List services", Args: a.serverArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return a.run(cmd, args[0], &agentv1.ActionRequest{Action: &agentv1.ActionRequest_ServiceList{ServiceList: &agentv1.ServiceListRequest{Filter: filter}}}, ctl.PrintServices)
+			server, _ := a.splitServer(args)
+			return a.run(cmd, server, &agentv1.ActionRequest{Action: &agentv1.ActionRequest_ServiceList{ServiceList: &agentv1.ServiceListRequest{Filter: filter}}}, ctl.PrintServices)
 		},
-	}
+	})
 	slist.Flags().StringVar(&filter, "filter", "", "only units whose name contains this text")
 	services.AddCommand(slist)
 	for _, op := range []struct {
@@ -403,29 +524,31 @@ func actionCommands(a *app) []*cobra.Command {
 		{"enable", agentv1.ServiceOperation_SERVICE_OPERATION_ENABLE},
 		{"disable", agentv1.ServiceOperation_SERVICE_OPERATION_DISABLE},
 	} {
-		services.AddCommand(&cobra.Command{
-			Use: op.name + " <server> <unit>", Short: strings.ToUpper(op.name[:1]) + op.name[1:] + " a service", Args: cobra.ExactArgs(2),
+		services.AddCommand(a.addBulkFlags(&cobra.Command{
+			Use: op.name + " <servers> <unit>", Short: strings.ToUpper(op.name[:1]) + op.name[1:] + " a service", Args: a.serverArgs(2),
 			RunE: func(cmd *cobra.Command, args []string) error {
-				return a.run(cmd, args[0], &agentv1.ActionRequest{Action: &agentv1.ActionRequest_ServiceControl{ServiceControl: &agentv1.ServiceControlRequest{
-					Unit: command.NormalizeUnit(args[1]), Operation: op.op,
+				server, rest := a.splitServer(args)
+				return a.run(cmd, server, &agentv1.ActionRequest{Action: &agentv1.ActionRequest_ServiceControl{ServiceControl: &agentv1.ServiceControlRequest{
+					Unit: command.NormalizeUnit(rest[0]), Operation: op.op,
 				}}}, ctl.PrintServiceUnit)
 			},
-		})
+		}))
 	}
 
 	processes := &cobra.Command{Use: "processes", Aliases: []string{"ps"}, Short: "List and signal processes"}
 	var sortBy string
 	var plimit uint32
-	plist := &cobra.Command{
-		Use: "list <server>", Short: "List processes", Args: cobra.ExactArgs(1),
+	plist := a.addBulkFlags(&cobra.Command{
+		Use: "list <servers>", Short: "List processes", Args: a.serverArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			server, _ := a.splitServer(args)
 			order := map[string]agentv1.ProcessSort{"cpu": agentv1.ProcessSort_PROCESS_SORT_CPU, "mem": agentv1.ProcessSort_PROCESS_SORT_MEMORY, "pid": agentv1.ProcessSort_PROCESS_SORT_PID}[sortBy]
 			if order == agentv1.ProcessSort_PROCESS_SORT_UNSPECIFIED {
 				return errors.New("--sort must be cpu, mem or pid")
 			}
-			return a.run(cmd, args[0], &agentv1.ActionRequest{Action: &agentv1.ActionRequest_ProcessList{ProcessList: &agentv1.ProcessListRequest{Sort: order, Limit: plimit}}}, ctl.PrintProcesses)
+			return a.run(cmd, server, &agentv1.ActionRequest{Action: &agentv1.ActionRequest_ProcessList{ProcessList: &agentv1.ProcessListRequest{Sort: order, Limit: plimit}}}, ctl.PrintProcesses)
 		},
-	}
+	})
 	plist.Flags().StringVar(&sortBy, "sort", "cpu", "sort by cpu, mem or pid")
 	plist.Flags().Uint32Var(&plimit, "limit", 25, "number of processes (max 500)")
 	var sigName string
@@ -441,7 +564,7 @@ func actionCommands(a *app) []*cobra.Command {
 			if !ok {
 				return fmt.Errorf("unsupported signal %q (TERM, KILL, HUP, INT, QUIT, USR1, USR2)", sigName)
 			}
-			return a.run(cmd, args[0], &agentv1.ActionRequest{Action: &agentv1.ActionRequest_ProcessSignal{ProcessSignal: &agentv1.ProcessSignalRequest{
+			return a.runOne(cmd, args[0], &agentv1.ActionRequest{Action: &agentv1.ActionRequest_ProcessSignal{ProcessSignal: &agentv1.ProcessSignalRequest{
 				Pid: pid, Signal: agentv1.Signal(sig), StartTicks: startTicks,
 			}}}, func(w io.Writer, _ *agentv1.ActionResult) error {
 				_, err := fmt.Fprintf(w, "sent %s to %d\n", strings.ToUpper(sigName), pid)
@@ -476,7 +599,7 @@ func actionCommands(a *app) []*cobra.Command {
 			}
 			for {
 				var cursor string
-				if err := a.run(cmd, args[0], &agentv1.ActionRequest{Action: &agentv1.ActionRequest_LogQuery{LogQuery: req}}, func(w io.Writer, res *agentv1.ActionResult) error {
+				if err := a.runOne(cmd, args[0], &agentv1.ActionRequest{Action: &agentv1.ActionRequest_LogQuery{LogQuery: req}}, func(w io.Writer, res *agentv1.ActionResult) error {
 					cursor = res.GetLogQuery().GetCursor()
 					return ctl.PrintLogs(w, res.GetLogQuery().GetEntries())
 				}); err != nil {
@@ -513,7 +636,7 @@ func actionCommands(a *app) []*cobra.Command {
 				return errors.New("--since must be between 0 and 720h")
 			}
 			req := &agentv1.AuthLogRequest{SinceSeconds: uint32(authSince.Seconds()), Limit: authLimit}
-			return a.run(cmd, args[0], &agentv1.ActionRequest{Action: &agentv1.ActionRequest_AuthLog{AuthLog: req}}, func(w io.Writer, res *agentv1.ActionResult) error {
+			return a.runOne(cmd, args[0], &agentv1.ActionRequest{Action: &agentv1.ActionRequest_AuthLog{AuthLog: req}}, func(w io.Writer, res *agentv1.ActionResult) error {
 				return ctl.PrintAuth(w, res.GetAuthLog().GetEvents(), failedOnly)
 			})
 		},
