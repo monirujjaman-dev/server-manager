@@ -59,6 +59,39 @@ func Describe(req *agentv1.ActionRequest) (Info, error) {
 		return Info{Name: "logs.query", Risk: RiskRead}, nil
 	case *agentv1.ActionRequest_AuthLog:
 		return Info{Name: "logs.auth", Risk: RiskRead}, nil
+	// Docker: the socket is root-equivalent, so every action runs in the helper.
+	case *agentv1.ActionRequest_DockerContainerList:
+		return Info{Name: "docker.list", Risk: RiskRead, Privileged: true}, nil
+	case *agentv1.ActionRequest_DockerContainerControl:
+		c := a.DockerContainerControl
+		switch c.GetOperation() {
+		case agentv1.DockerContainerOperation_DOCKER_CONTAINER_OPERATION_START:
+			return Info{Name: "docker.start", Risk: RiskLow, Privileged: true}, nil
+		case agentv1.DockerContainerOperation_DOCKER_CONTAINER_OPERATION_RESTART:
+			return Info{Name: "docker.restart", Risk: RiskLow, Privileged: true}, nil
+		case agentv1.DockerContainerOperation_DOCKER_CONTAINER_OPERATION_STOP:
+			return Info{Name: "docker.stop", Risk: RiskMedium, Privileged: true}, nil
+		case agentv1.DockerContainerOperation_DOCKER_CONTAINER_OPERATION_REMOVE:
+			risk := RiskHigh
+			if c.GetRemoveVolumes() {
+				risk = RiskCritical
+			}
+			return Info{Name: "docker.remove", Risk: risk, Privileged: true}, nil
+		default: // refused by Validate; never rate an unknown value below the worst case
+			return Info{Name: "docker.remove", Risk: RiskCritical, Privileged: true}, nil
+		}
+	case *agentv1.ActionRequest_DockerLogs:
+		return Info{Name: "docker.logs", Risk: RiskRead, Privileged: true}, nil
+	case *agentv1.ActionRequest_DockerStats:
+		return Info{Name: "docker.stats", Risk: RiskRead, Privileged: true}, nil
+	case *agentv1.ActionRequest_DockerImageList:
+		return Info{Name: "docker.images", Risk: RiskRead, Privileged: true}, nil
+	case *agentv1.ActionRequest_DockerVolumeList:
+		return Info{Name: "docker.volumes", Risk: RiskRead, Privileged: true}, nil
+	case *agentv1.ActionRequest_DockerNetworkList:
+		return Info{Name: "docker.networks", Risk: RiskRead, Privileged: true}, nil
+	case *agentv1.ActionRequest_DockerPrune:
+		return Info{Name: "docker.prune", Risk: pruneRisk(a.DockerPrune), Privileged: true}, nil
 	case nil:
 		return Info{}, errors.New("empty action")
 	default:
@@ -115,6 +148,91 @@ func Validate(req *agentv1.ActionRequest) error {
 			a.ProcessSignal.GetSignal() == agentv1.Signal_SIGNAL_UNSPECIFIED {
 			return errors.New("invalid signal")
 		}
+	case *agentv1.ActionRequest_DockerContainerControl:
+		return validateDockerControl(a.DockerContainerControl)
+	case *agentv1.ActionRequest_DockerLogs:
+		if err := ValidateContainerRef(a.DockerLogs.GetContainer()); err != nil {
+			return err
+		}
+		if a.DockerLogs.GetTail() > 500 || a.DockerLogs.GetSinceSeconds() > maxLogSince {
+			return errors.New("tail (max 500) or since (max 30 days) out of range")
+		}
+	case *agentv1.ActionRequest_DockerStats:
+		if c := a.DockerStats.GetContainer(); c != "" {
+			return ValidateContainerRef(c)
+		}
+	case *agentv1.ActionRequest_DockerPrune:
+		p := a.DockerPrune
+		t := p.GetTarget()
+		if _, ok := agentv1.DockerPruneTarget_name[int32(t)]; !ok || t == agentv1.DockerPruneTarget_DOCKER_PRUNE_TARGET_UNSPECIFIED {
+			return errors.New("invalid prune target")
+		}
+		if p.GetAllImages() && t != agentv1.DockerPruneTarget_DOCKER_PRUNE_TARGET_IMAGES {
+			return errors.New("all_images only applies to images")
+		}
+		if p.GetAllVolumes() && t != agentv1.DockerPruneTarget_DOCKER_PRUNE_TARGET_VOLUMES {
+			return errors.New("all_volumes only applies to volumes")
+		}
+	}
+	return nil
+}
+
+// pruneRisk rates a prune at least as high as removing one of the objects it deletes:
+// stopped containers lose their writable layer (like docker.remove, high), all unused
+// images may include local builds that cannot be pulled again (high), and volumes hold
+// data (critical). Unknown targets, refused by Validate, rate critical.
+func pruneRisk(p *agentv1.DockerPruneRequest) Risk {
+	switch p.GetTarget() {
+	case agentv1.DockerPruneTarget_DOCKER_PRUNE_TARGET_NETWORKS, agentv1.DockerPruneTarget_DOCKER_PRUNE_TARGET_BUILD_CACHE:
+		return RiskMedium
+	case agentv1.DockerPruneTarget_DOCKER_PRUNE_TARGET_IMAGES:
+		if p.GetAllImages() {
+			return RiskHigh
+		}
+		return RiskMedium
+	case agentv1.DockerPruneTarget_DOCKER_PRUNE_TARGET_CONTAINERS:
+		return RiskHigh
+	default:
+		return RiskCritical
+	}
+}
+
+// containerRe matches Docker container names and (prefixes of) hex IDs. It also keeps
+// the reference safe to place in an Engine API URL path.
+var containerRe = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$`)
+
+// MaxDockerStopTimeout bounds stop/restart waits so they finish within the command
+// timeout.
+const MaxDockerStopTimeout = 90
+
+// ValidateContainerRef checks a container name or ID.
+func ValidateContainerRef(ref string) error {
+	if !containerRe.MatchString(ref) {
+		return fmt.Errorf("invalid container name or ID %q", ref)
+	}
+	return nil
+}
+
+func validateDockerControl(c *agentv1.DockerContainerControlRequest) error {
+	if err := ValidateContainerRef(c.GetContainer()); err != nil {
+		return err
+	}
+	op := c.GetOperation()
+	if _, ok := agentv1.DockerContainerOperation_name[int32(op)]; !ok ||
+		op == agentv1.DockerContainerOperation_DOCKER_CONTAINER_OPERATION_UNSPECIFIED {
+		return errors.New("invalid container operation")
+	}
+	isRemove := op == agentv1.DockerContainerOperation_DOCKER_CONTAINER_OPERATION_REMOVE
+	if (c.GetForce() || c.GetRemoveVolumes()) && !isRemove {
+		return errors.New("force and remove_volumes only apply to remove")
+	}
+	stopLike := op == agentv1.DockerContainerOperation_DOCKER_CONTAINER_OPERATION_STOP ||
+		op == agentv1.DockerContainerOperation_DOCKER_CONTAINER_OPERATION_RESTART
+	if c.GetTimeoutSeconds() != 0 && !stopLike {
+		return errors.New("timeout only applies to stop and restart")
+	}
+	if c.GetTimeoutSeconds() > MaxDockerStopTimeout {
+		return fmt.Errorf("timeout must be at most %d seconds", MaxDockerStopTimeout)
 	}
 	return nil
 }

@@ -7,15 +7,19 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 
 	"github.com/google/uuid"
 
 	agentv1 "github.com/monirujjaman-dev/server-manager/gen/sm/agent/v1"
+	"github.com/monirujjaman-dev/server-manager/internal/agent/modules"
 	"github.com/monirujjaman-dev/server-manager/internal/command"
 	"github.com/monirujjaman-dev/server-manager/internal/pki"
 )
@@ -41,6 +45,8 @@ type env struct {
 	serverID uuid.UUID
 	sd       *fakeSystemd
 	client   *Client
+	// dockerCalls counts requests that reached the fake Docker daemon.
+	dockerCalls *atomic.Int32
 }
 
 func newEnv(t *testing.T, allowedUID uint32) *env {
@@ -69,8 +75,21 @@ func newEnv(t *testing.T, allowedUID uint32) *env {
 		t.Fatal(err)
 	}
 	sd := &fakeSystemd{}
+	var dockerCalls atomic.Int32
+	daemon := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		dockerCalls.Add(1)
+		switch r.URL.Path {
+		case "/version":
+			_, _ = w.Write([]byte(`{"ApiVersion":"1.47"}`))
+		case "/v1.47/containers/json":
+			_, _ = w.Write([]byte(`[{"Id":"abc123","Names":["/web"],"State":"running"}]`))
+		default:
+			w.WriteHeader(http.StatusNoContent)
+		}
+	}))
+	t.Cleanup(daemon.Close)
 	srv, err := New(cfg, slog.New(slog.DiscardHandler), Options{
-		Systemd: sd, AllowedUID: &allowedUID,
+		Systemd: sd, AllowedUID: &allowedUID, Docker: modules.NewDockerHTTP(daemon.Client(), daemon.URL),
 		Kill: func(int, syscall.Signal) error { return nil },
 	})
 	if err != nil {
@@ -84,7 +103,7 @@ func newEnv(t *testing.T, allowedUID uint32) *env {
 	done := make(chan struct{})
 	go func() { _ = srv.Serve(ctx, ln); close(done) }()
 	t.Cleanup(func() { cancel(); <-done })
-	return &env{signer: signer, serverID: id, sd: sd, client: NewClient(cfg.Socket)}
+	return &env{signer: signer, serverID: id, sd: sd, client: NewClient(cfg.Socket), dockerCalls: &dockerCalls}
 }
 
 func restart() *agentv1.ActionRequest {
@@ -151,5 +170,36 @@ func TestSocketPermissions(t *testing.T) {
 	fi, err := os.Stat(path)
 	if err != nil || fi.Mode().Perm() != 0o660 {
 		t.Fatalf("socket mode %v, %v", fi.Mode().Perm(), err)
+	}
+}
+
+func TestDockerRunsInHelperOnlyWhenSigned(t *testing.T) {
+	e := newEnv(t, uid())
+	list := &agentv1.ActionRequest{Action: &agentv1.ActionRequest_DockerContainerList{DockerContainerList: &agentv1.DockerContainerListRequest{}}}
+	cmd, err := e.signer.Sign(uuid.New(), e.serverID, list, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := e.client.Execute(context.Background(), cmd)
+	if err != nil || res.GetStatus() != agentv1.CommandStatus_COMMAND_STATUS_SUCCEEDED ||
+		res.GetResult().GetDockerContainerList().GetContainers()[0].GetName() != "web" {
+		t.Fatalf("docker.list: %v %v", res, err)
+	}
+
+	before := e.dockerCalls.Load()
+	prune := &agentv1.ActionRequest{Action: &agentv1.ActionRequest_DockerPrune{DockerPrune: &agentv1.DockerPruneRequest{
+		Target: agentv1.DockerPruneTarget_DOCKER_PRUNE_TARGET_VOLUMES, AllVolumes: true,
+	}}}
+	_, otherKey, _ := ed25519.GenerateKey(rand.Reader)
+	forged, _ := command.NewSigner(otherKey).Sign(uuid.New(), e.serverID, prune, 0)
+	otherServer, _ := e.signer.Sign(uuid.New(), uuid.New(), prune, 0)
+	for name, c := range map[string]*agentv1.Command{"forged": forged, "other server": otherServer, "replayed list": cmd} {
+		res, err := e.client.Execute(context.Background(), c)
+		if err != nil || res.GetStatus() != agentv1.CommandStatus_COMMAND_STATUS_REJECTED {
+			t.Errorf("%s: %v %v", name, res, err)
+		}
+	}
+	if n := e.dockerCalls.Load(); n != before {
+		t.Fatalf("rejected commands reached the Docker daemon (%d requests)", n-before)
 	}
 }

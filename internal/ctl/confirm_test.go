@@ -105,6 +105,15 @@ func TestActionLabel(t *testing.T) {
 		{&agentv1.ActionRequest{Action: &agentv1.ActionRequest_ProcessSignal{ProcessSignal: &agentv1.ProcessSignalRequest{
 			Pid: 42, Signal: agentv1.Signal_SIGNAL_KILL,
 		}}}, "processes.signal SIGKILL to PID 42"},
+		{&agentv1.ActionRequest{Action: &agentv1.ActionRequest_DockerContainerControl{DockerContainerControl: &agentv1.DockerContainerControlRequest{
+			Container: "web", Operation: agentv1.DockerContainerOperation_DOCKER_CONTAINER_OPERATION_REMOVE, Force: true, RemoveVolumes: true,
+		}}}, "docker.remove web (forced, with its volumes)"},
+		{&agentv1.ActionRequest{Action: &agentv1.ActionRequest_DockerPrune{DockerPrune: &agentv1.DockerPruneRequest{
+			Target: agentv1.DockerPruneTarget_DOCKER_PRUNE_TARGET_VOLUMES, AllVolumes: true,
+		}}}, "docker.prune volumes (including named volumes)"},
+		{&agentv1.ActionRequest{Action: &agentv1.ActionRequest_DockerPrune{DockerPrune: &agentv1.DockerPruneRequest{
+			Target: agentv1.DockerPruneTarget_DOCKER_PRUNE_TARGET_BUILD_CACHE,
+		}}}, "docker.prune build-cache"},
 		{&agentv1.ActionRequest{Action: &agentv1.ActionRequest_SystemInfo{SystemInfo: &agentv1.SystemInfoRequest{}}}, "system.info"},
 		{&agentv1.ActionRequest{}, "unknown action"},
 	} {

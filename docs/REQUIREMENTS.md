@@ -45,7 +45,7 @@ Status: ✅ done · 🟡 partial · ⏳ planned (phase).
 |----|----------------------------------------|--------|-------|
 | F-01 | Fleet dashboard: CPU, memory, disk, network, load, uptime, online state | ✅ | `smctl dashboard` (1.5) |
 | F-02 | Manage databases (MySQL/MariaDB, PostgreSQL): users, DBs, backups | ⏳ P4 | 4.2–4.3 |
-| F-03 | Docker and containers: list, logs, stats, start/stop, prune | ⏳ P2 | 2.1 |
+| F-03 | Docker and containers: list, logs, stats, start/stop, prune | ✅ | `smctl docker` via the privileged helper; running containers in `smctl dashboard` (2.1) |
 | F-04 | Server audit logs: SSH logins, sudo, journald; operator actions | ✅ / 🟡 | `smctl logins`, `smctl logs`, hash-chained audit log; auditd later (P3) |
 | F-05 | Server traffic: per-interface rates and totals | 🟡 | rates in metrics; top talkers, monthly totals P4 (4.6) |
 | F-06 | Banned / failed IPs (fail2ban, CrowdSec), fleet-wide bans | ⏳ P3 | 3.4 |

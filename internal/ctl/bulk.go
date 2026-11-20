@@ -190,7 +190,7 @@ func PrintBulkSummary(w io.Writer, results []BulkResult, skipped []Target) error
 }
 
 func oneLine(s string) string {
-	s = strings.ReplaceAll(s, "\n", " ")
+	s = cell(s)
 	if len(s) > 200 {
 		s = s[:200] + "…"
 	}

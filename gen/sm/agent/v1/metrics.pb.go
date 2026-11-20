@@ -91,8 +91,12 @@ type HostMetrics struct {
 	UptimeSeconds        uint64              `protobuf:"varint,10,opt,name=uptime_seconds,json=uptimeSeconds,proto3" json:"uptime_seconds,omitempty"`
 	Filesystems          []*Filesystem       `protobuf:"bytes,11,rep,name=filesystems,proto3" json:"filesystems,omitempty"`
 	Interfaces           []*NetworkInterface `protobuf:"bytes,12,rep,name=interfaces,proto3" json:"interfaces,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Running Docker containers, counted from cgroupfs; unset when Docker is not found.
+	ContainersRunning *uint32 `protobuf:"varint,13,opt,name=containers_running,json=containersRunning,proto3,oneof" json:"containers_running,omitempty"`
+	// Memory used by running containers, excluding page cache.
+	ContainersMemoryBytes uint64 `protobuf:"varint,14,opt,name=containers_memory_bytes,json=containersMemoryBytes,proto3" json:"containers_memory_bytes,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *HostMetrics) Reset() {
@@ -209,6 +213,20 @@ func (x *HostMetrics) GetInterfaces() []*NetworkInterface {
 	return nil
 }
 
+func (x *HostMetrics) GetContainersRunning() uint32 {
+	if x != nil && x.ContainersRunning != nil {
+		return *x.ContainersRunning
+	}
+	return 0
+}
+
+func (x *HostMetrics) GetContainersMemoryBytes() uint64 {
+	if x != nil {
+		return x.ContainersMemoryBytes
+	}
+	return 0
+}
+
 type NetworkInterface struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -310,7 +328,7 @@ const file_sm_agent_v1_metrics_proto_rawDesc = "" +
 	"\x19sm/agent/v1/metrics.proto\x12\vsm.agent.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x19sm/agent/v1/actions.proto\"{\n" +
 	"\fMetricsBatch\x12=\n" +
 	"\fcollected_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\vcollectedAt\x12,\n" +
-	"\x04host\x18\x02 \x01(\v2\x18.sm.agent.v1.HostMetricsR\x04host\"\xe6\x03\n" +
+	"\x04host\x18\x02 \x01(\v2\x18.sm.agent.v1.HostMetricsR\x04host\"\xe9\x04\n" +
 	"\vHostMetrics\x12\x1f\n" +
 	"\vcpu_percent\x18\x01 \x01(\x01R\n" +
 	"cpuPercent\x12\x1b\n" +
@@ -327,7 +345,10 @@ const file_sm_agent_v1_metrics_proto_rawDesc = "" +
 	"\vfilesystems\x18\v \x03(\v2\x17.sm.agent.v1.FilesystemR\vfilesystems\x12=\n" +
 	"\n" +
 	"interfaces\x18\f \x03(\v2\x1d.sm.agent.v1.NetworkInterfaceR\n" +
-	"interfaces\"\xf4\x01\n" +
+	"interfaces\x122\n" +
+	"\x12containers_running\x18\r \x01(\rH\x00R\x11containersRunning\x88\x01\x01\x126\n" +
+	"\x17containers_memory_bytes\x18\x0e \x01(\x04R\x15containersMemoryBytesB\x15\n" +
+	"\x13_containers_running\"\xf4\x01\n" +
 	"\x10NetworkInterface\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x19\n" +
 	"\brx_bytes\x18\x02 \x01(\x04R\arxBytes\x12\x19\n" +
@@ -376,6 +397,7 @@ func file_sm_agent_v1_metrics_proto_init() {
 		return
 	}
 	file_sm_agent_v1_actions_proto_init()
+	file_sm_agent_v1_metrics_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

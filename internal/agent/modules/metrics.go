@@ -46,6 +46,9 @@ func (c *Collector) Collect() (*agentv1.HostMetrics, error) {
 		SwapTotalBytes: info.GetSwapTotalBytes(), SwapFreeBytes: info.GetSwapFreeBytes(),
 		UptimeSeconds: info.GetUptimeSeconds(), Filesystems: info.GetFilesystems(),
 	}
+	if n, mem, ok := c.host.containerStats(); ok {
+		m.ContainersRunning, m.ContainersMemoryBytes = &n, mem
+	}
 	if cpu, err := c.host.cpuTimes(); err == nil {
 		if dt := cpu.total - c.prevCPU.total; cpu.total > c.prevCPU.total && dt > 0 {
 			busy := dt - min(cpu.idle-c.prevCPU.idle, dt)

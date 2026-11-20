@@ -20,6 +20,11 @@ import (
 
 const commandTimeout = 2 * time.Minute
 
+// MaxResultBytes bounds a command result. The control plane refuses stream messages
+// over 1 MiB and drops the stream, which would also lose metrics and other results, so
+// anything larger is reported as a failure instead of being sent.
+const MaxResultBytes = 768 << 10
+
 // updateVerifier applies the command key from a Welcome. The first key seen is stored
 // (trust on first use over the authenticated mTLS stream, for agents enrolled before the
 // key existed); a different key later is refused so a compromised TLS endpoint alone
@@ -77,6 +82,19 @@ func (a *Agent) handleCommand(ctx context.Context, cmd *agentv1.Command) {
 }
 
 func (a *Agent) execute(ctx context.Context, cmd *agentv1.Command) *agentv1.CommandResult {
+	return limitResult(a.executeUnbounded(ctx, cmd))
+}
+
+// limitResult replaces a result that is too large to send with a failure.
+func limitResult(res *agentv1.CommandResult) *agentv1.CommandResult {
+	if n := proto.Size(res); n > MaxResultBytes {
+		return &agentv1.CommandResult{Id: res.GetId(), Status: agentv1.CommandStatus_COMMAND_STATUS_FAILED,
+			Error: fmt.Sprintf("result too large to send (%d KiB, limit %d KiB); narrow the request", n>>10, MaxResultBytes>>10)}
+	}
+	return res
+}
+
+func (a *Agent) executeUnbounded(ctx context.Context, cmd *agentv1.Command) *agentv1.CommandResult {
 	id := unverifiedID(cmd)
 	reject := func(err error) *agentv1.CommandResult {
 		a.log.Warn("command rejected", "job_id", id, "err", err)

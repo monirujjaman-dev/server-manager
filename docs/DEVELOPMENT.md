@@ -86,6 +86,12 @@ smctl processes kill web-1 1234 --start 567890              # medium risk: type 
 smctl logs web-1 --unit nginx --priority err --since 2h
 smctl logs web-1 --unit nginx --follow
 smctl logins web-1 --failed
+smctl docker ps web-1 --stopped                             # Docker runs through the privileged helper
+smctl docker restart --group staging app                    # bulk, low risk
+smctl docker logs web-1 app --since 1h --follow
+smctl docker stats web-1
+smctl docker prune web-1 images --all-images                # medium risk: type "web-1" to confirm
+smctl docker rm web-1 old-job                               # admin; high risk, step-up
 smctl enroll create-token --name web-2 --group production  # admin; asks for a fresh MFA code if needed
 smctl servers revoke web-2 --reason "decommissioned"       # admin; high risk: type "web-2" to confirm
 smctl audit list                                           # global admin
@@ -115,7 +121,7 @@ from `deploy/systemd/sm-agent-privd.service`; locally, run it as root next to th
 and point both at the same socket:
 
 ```bash
-sudo bin/sm-agent privd --privd-config privd.yaml   # socket, agent_user, cert_file, command_key_file
+sudo bin/sm-agent privd --privd-config privd.yaml   # socket, agent_user, cert_file, command_key_file, docker_socket
 ```
 
 `agent_user` must not be root; the helper refuses connections from any other UID.

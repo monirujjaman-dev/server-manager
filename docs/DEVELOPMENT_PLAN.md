@@ -109,7 +109,7 @@ with host facts), and stream termination on revocation or certificate expiry.
 
 | # | Task | Done when | Status |
 |---|------|-----------|--------|
-| 2.1 | Module **docker**: containers, images, volumes, networks, logs, stats, start/stop/restart, remove, prune (via `sm-privd`) | Full container lifecycle from the CLI; container stats in dashboard | ⏳ |
+| 2.1 | Module **docker**: containers, images, volumes, networks, logs, stats, start/stop/restart, remove, prune (via `sm-privd`) | Full container lifecycle from the CLI; container stats in dashboard | ✅ `smctl docker ps/start/stop/restart/rm/logs/stats/images/volumes/networks/prune`, all in the privileged helper; running containers and their memory in `smctl dashboard` |
 | 2.2 | Module **disk**: usage per mount, largest files/dirs, cleanup tasks (journal vacuum, package cache, old kernels, Docker prune) with dry-run | Dry run shows the bytes to be freed; apply frees them | ⏳ |
 | 2.3 | Module **swap**: create/resize/remove swapfile, fstab update, swappiness | Swap survives reboot; removal is clean | ⏳ |
 | 2.4 | Module **time**: timezone, NTP status/toggle (timedate1 D-Bus) | Bulk-set timezone on a server group | ⏳ |
@@ -128,7 +128,27 @@ signature and audit record, and the control plane gained no new endpoint. The fi
 server runs alone (a step-up prompt is answered once, and it acts as a canary), then up
 to `--parallel` (default 5, max 20) at a time. Offline servers are skipped unless
 `--include-offline`; an explicitly listed server you cannot see is an error rather than
-silently dropped. Planned order for the rest of the phase: docker (2.1), disk/swap/time
+silently dropped.
+
+Notes on 2.1: the Docker socket is root-equivalent, so every `docker.*` action, reads
+included, runs in `sm-privd`, which re-verifies the signed command first. The helper
+talks to the Engine API over `/run/docker.sock` with a small built-in client (no Docker
+SDK dependency) that negotiates the API version between 1.41 and 1.47, so it works with
+Docker 20.10 through 29+. Container references are names or hex IDs only; changes
+need the exact name or at least 12 characters of the ID (no silent short-prefix match)
+and act on the full ID resolved first. Risk: list/logs/stats read; start/restart low;
+stop and prune of images (dangling), networks and build cache medium; `rm`, prune of
+stopped containers and of all unused images high; `rm --volumes` and volume prune
+critical (volume prune on API < 1.42 is refused because it would also delete named
+volumes). Results over 768 KiB are failed by the agent instead of sent (the stream
+limit is 1 MiB), lists stop at a byte budget, and `smctl` strips terminal control and
+bidi characters from everything it prints from a server. The
+dashboard's container count and memory come from cgroupfs, read by the unprivileged
+agent without touching the socket. Not covered yet: a system test with a real Docker
+daemon (the systemd test containers do not run Docker); the Engine API handling is
+tested against a fake daemon.
+
+Planned order for the rest of the phase: disk/swap/time
 (2.2–2.4), updates (2.5), control-plane deployment and workstation onboarding
 (2.9–2.12), then the TUI (2.7) on top of all of them.
 

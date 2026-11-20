@@ -80,7 +80,8 @@ const listServersWithMetrics = `-- name: ListServersWithMetrics :many
 SELECT s.id, s.name, s.group_id, g.name AS group_name, s.status, s.hostname, s.distro, s.distro_version,
        s.agent_version, s.last_seen_at,
        m.collected_at, m.cpu_percent, m.cpu_count, m.load1, m.memory_total_bytes, m.memory_available_bytes,
-       m.disk_max_used_percent, m.disk_max_mount, m.net_rx_bytes_per_second, m.net_tx_bytes_per_second, m.uptime_seconds
+       m.disk_max_used_percent, m.disk_max_mount, m.net_rx_bytes_per_second, m.net_tx_bytes_per_second, m.uptime_seconds,
+       m.containers_running, m.containers_memory_bytes
 FROM servers s
 LEFT JOIN server_groups g ON g.id = s.group_id
 LEFT JOIN server_metrics m ON m.server_id = s.id
@@ -88,27 +89,29 @@ ORDER BY s.name
 `
 
 type ListServersWithMetricsRow struct {
-	ID                   uuid.UUID
-	Name                 string
-	GroupID              *uuid.UUID
-	GroupName            *string
-	Status               string
-	Hostname             string
-	Distro               string
-	DistroVersion        string
-	AgentVersion         string
-	LastSeenAt           *time.Time
-	CollectedAt          *time.Time
-	CpuPercent           *float64
-	CpuCount             *int32
-	Load1                *float64
-	MemoryTotalBytes     *int64
-	MemoryAvailableBytes *int64
-	DiskMaxUsedPercent   *float64
-	DiskMaxMount         *string
-	NetRxBytesPerSecond  *float64
-	NetTxBytesPerSecond  *float64
-	UptimeSeconds        *int64
+	ID                    uuid.UUID
+	Name                  string
+	GroupID               *uuid.UUID
+	GroupName             *string
+	Status                string
+	Hostname              string
+	Distro                string
+	DistroVersion         string
+	AgentVersion          string
+	LastSeenAt            *time.Time
+	CollectedAt           *time.Time
+	CpuPercent            *float64
+	CpuCount              *int32
+	Load1                 *float64
+	MemoryTotalBytes      *int64
+	MemoryAvailableBytes  *int64
+	DiskMaxUsedPercent    *float64
+	DiskMaxMount          *string
+	NetRxBytesPerSecond   *float64
+	NetTxBytesPerSecond   *float64
+	UptimeSeconds         *int64
+	ContainersRunning     *int32
+	ContainersMemoryBytes *int64
 }
 
 func (q *Queries) ListServersWithMetrics(ctx context.Context) ([]ListServersWithMetricsRow, error) {
@@ -142,6 +145,8 @@ func (q *Queries) ListServersWithMetrics(ctx context.Context) ([]ListServersWith
 			&i.NetRxBytesPerSecond,
 			&i.NetTxBytesPerSecond,
 			&i.UptimeSeconds,
+			&i.ContainersRunning,
+			&i.ContainersMemoryBytes,
 		); err != nil {
 			return nil, err
 		}
@@ -157,8 +162,9 @@ const upsertServerMetrics = `-- name: UpsertServerMetrics :exec
 INSERT INTO server_metrics (
     server_id, collected_at, cpu_percent, cpu_count, load1, load5, load15,
     memory_total_bytes, memory_available_bytes, swap_total_bytes, swap_free_bytes,
-    uptime_seconds, disk_max_used_percent, disk_max_mount, net_rx_bytes_per_second, net_tx_bytes_per_second
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+    uptime_seconds, disk_max_used_percent, disk_max_mount, net_rx_bytes_per_second, net_tx_bytes_per_second,
+    containers_running, containers_memory_bytes
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 ON CONFLICT (server_id) DO UPDATE SET
     collected_at = EXCLUDED.collected_at, cpu_percent = EXCLUDED.cpu_percent, cpu_count = EXCLUDED.cpu_count,
     load1 = EXCLUDED.load1, load5 = EXCLUDED.load5, load15 = EXCLUDED.load15,
@@ -166,27 +172,30 @@ ON CONFLICT (server_id) DO UPDATE SET
     swap_total_bytes = EXCLUDED.swap_total_bytes, swap_free_bytes = EXCLUDED.swap_free_bytes,
     uptime_seconds = EXCLUDED.uptime_seconds, disk_max_used_percent = EXCLUDED.disk_max_used_percent,
     disk_max_mount = EXCLUDED.disk_max_mount, net_rx_bytes_per_second = EXCLUDED.net_rx_bytes_per_second,
-    net_tx_bytes_per_second = EXCLUDED.net_tx_bytes_per_second
+    net_tx_bytes_per_second = EXCLUDED.net_tx_bytes_per_second,
+    containers_running = EXCLUDED.containers_running, containers_memory_bytes = EXCLUDED.containers_memory_bytes
 WHERE server_metrics.collected_at < EXCLUDED.collected_at
 `
 
 type UpsertServerMetricsParams struct {
-	ServerID             uuid.UUID
-	CollectedAt          time.Time
-	CpuPercent           float64
-	CpuCount             int32
-	Load1                float64
-	Load5                float64
-	Load15               float64
-	MemoryTotalBytes     int64
-	MemoryAvailableBytes int64
-	SwapTotalBytes       int64
-	SwapFreeBytes        int64
-	UptimeSeconds        int64
-	DiskMaxUsedPercent   float64
-	DiskMaxMount         string
-	NetRxBytesPerSecond  float64
-	NetTxBytesPerSecond  float64
+	ServerID              uuid.UUID
+	CollectedAt           time.Time
+	CpuPercent            float64
+	CpuCount              int32
+	Load1                 float64
+	Load5                 float64
+	Load15                float64
+	MemoryTotalBytes      int64
+	MemoryAvailableBytes  int64
+	SwapTotalBytes        int64
+	SwapFreeBytes         int64
+	UptimeSeconds         int64
+	DiskMaxUsedPercent    float64
+	DiskMaxMount          string
+	NetRxBytesPerSecond   float64
+	NetTxBytesPerSecond   float64
+	ContainersRunning     *int32
+	ContainersMemoryBytes *int64
 }
 
 // Older batches (sent after a reconnect) never overwrite newer ones.
@@ -208,6 +217,8 @@ func (q *Queries) UpsertServerMetrics(ctx context.Context, arg UpsertServerMetri
 		arg.DiskMaxMount,
 		arg.NetRxBytesPerSecond,
 		arg.NetTxBytesPerSecond,
+		arg.ContainersRunning,
+		arg.ContainersMemoryBytes,
 	)
 	return err
 }

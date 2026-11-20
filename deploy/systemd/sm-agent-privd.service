@@ -15,7 +15,9 @@ Environment=SM_PRIVD_AGENT_USER=smagent
 
 RuntimeDirectory=sm-agent
 RuntimeDirectoryMode=0750
-# No network namespace access: only filesystem UNIX sockets (its own and D-Bus) work.
+# No network namespace access: only filesystem UNIX sockets work (its own, D-Bus, and
+# the Docker daemon's /run/docker.sock for docker.* actions; SM_PRIVD_DOCKER_SOCKET
+# changes the path). The agent itself never gets Docker access: it is root-equivalent.
 PrivateNetwork=yes
 IPAddressDeny=any
 RestrictAddressFamilies=AF_UNIX AF_NETLINK

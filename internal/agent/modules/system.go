@@ -18,10 +18,12 @@ import (
 type Host struct {
 	// ProcRoot is normally "/proc".
 	ProcRoot string
+	// CgroupRoot is normally "/sys/fs/cgroup"; empty disables container metrics.
+	CgroupRoot string
 }
 
 // DefaultHost reads the real system.
-func DefaultHost() Host { return Host{ProcRoot: "/proc"} }
+func DefaultHost() Host { return Host{ProcRoot: "/proc", CgroupRoot: "/sys/fs/cgroup"} }
 
 func (h Host) proc(parts ...string) string {
 	return filepath.Join(append([]string{h.ProcRoot}, parts...)...)

@@ -28,7 +28,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	if err := rootCmd().ExecuteContext(ctx); err != nil {
-		fmt.Fprintln(os.Stderr, "error:", friendly(err))
+		fmt.Fprintln(os.Stderr, "error:", ctl.Cell(friendly(err))) // errors may carry text from the server
 		os.Exit(1)
 	}
 }
@@ -168,7 +168,7 @@ func (a *app) run(cmd *cobra.Command, arg string, req *agentv1.ActionRequest, pr
 	if err != nil {
 		return err
 	}
-	return print(cmd.OutOrStdout(), job.GetResult())
+	return print(ctl.SafeWriter(cmd.OutOrStdout()), job.GetResult())
 }
 
 // runBulk resolves the selector, confirms once and runs the action on every target.
@@ -197,7 +197,7 @@ func (a *app) runBulk(cmd *cobra.Command, sel ctl.Selector, info command.Info, r
 	}); err != nil {
 		return err
 	}
-	out, errOut := cmd.OutOrStdout(), cmd.ErrOrStderr()
+	out, errOut := ctl.SafeWriter(cmd.OutOrStdout()), cmd.ErrOrStderr()
 	results := ctl.RunBulk(cmd.Context(), targets, a.parallel, func(ctx context.Context, server string) ctl.BulkResult {
 		job, err := c.Run(ctx, server, req, a.wait)
 		r := ctl.BulkResult{Job: job, Err: err}
@@ -209,7 +209,7 @@ func (a *app) runBulk(cmd *cobra.Command, sel ctl.Selector, info command.Info, r
 		return r
 	}, func(r ctl.BulkResult) {
 		if r.Err != nil {
-			_, _ = fmt.Fprintf(errOut, "== %s: failed: %s\n", r.Server, r.Err)
+			_, _ = fmt.Fprintf(errOut, "== %s: failed: %s\n", r.Server, ctl.Cell(r.Err.Error()))
 			return
 		}
 		_, _ = fmt.Fprintf(out, "== %s\n%s", r.Server, r.Output)
@@ -239,6 +239,7 @@ func rootCmd() *cobra.Command {
 	root.AddCommand(sessionCommands(a)...)
 	root.AddCommand(fleetCommands(a)...)
 	root.AddCommand(actionCommands(a)...)
+	root.AddCommand(dockerCommand(a))
 	root.AddCommand(&cobra.Command{
 		Use: "version", Short: "Print version information", Args: cobra.NoArgs,
 		Run: func(cmd *cobra.Command, _ []string) { cmd.Println(version.String("smctl")) },

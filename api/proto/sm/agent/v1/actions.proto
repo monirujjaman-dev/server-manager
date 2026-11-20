@@ -44,6 +44,14 @@ message ActionRequest {
     ProcessSignalRequest process_signal = 5;
     LogQueryRequest log_query = 6;
     AuthLogRequest auth_log = 7;
+    DockerContainerListRequest docker_container_list = 8;
+    DockerContainerControlRequest docker_container_control = 9;
+    DockerLogsRequest docker_logs = 10;
+    DockerStatsRequest docker_stats = 11;
+    DockerImageListRequest docker_image_list = 12;
+    DockerVolumeListRequest docker_volume_list = 13;
+    DockerNetworkListRequest docker_network_list = 14;
+    DockerPruneRequest docker_prune = 15;
   }
 }
 
@@ -75,6 +83,14 @@ message ActionResult {
     ProcessSignalResult process_signal = 5;
     LogQueryResult log_query = 6;
     AuthLogResult auth_log = 7;
+    DockerContainerListResult docker_container_list = 8;
+    DockerContainerControlResult docker_container_control = 9;
+    DockerLogsResult docker_logs = 10;
+    DockerStatsResult docker_stats = 11;
+    DockerImageListResult docker_image_list = 12;
+    DockerVolumeListResult docker_volume_list = 13;
+    DockerNetworkListResult docker_network_list = 14;
+    DockerPruneResult docker_prune = 15;
   }
 }
 
@@ -280,6 +296,199 @@ message AuthEvent {
   string target_user = 6;
   string command = 7;
   string message = 8;
+}
+
+// ---------------------------------------------------------------------------
+// docker.* (all privileged: the Docker socket is root-equivalent, so even read actions
+// run in the helper, never in the unprivileged agent)
+//
+// A container reference is a container name or (a prefix of) its hex ID, matching
+// ^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$.
+// ---------------------------------------------------------------------------
+
+message DockerContainerListRequest {
+  // Also list containers that are not running.
+  bool all = 1;
+}
+
+message DockerContainerListResult {
+  // At most 1000 containers.
+  repeated DockerContainer containers = 1;
+  bool truncated = 2;
+}
+
+message DockerContainer {
+  // Full hex ID.
+  string id = 1;
+  // Primary name without the leading slash.
+  string name = 2;
+  string image = 3;
+  // e.g. "running", "exited", "paused", "restarting", "created", "dead"
+  string state = 4;
+  // Human-readable status from Docker, e.g. "Up 3 hours (healthy)".
+  string status = 5;
+  google.protobuf.Timestamp created = 6;
+  // At most 32 published ports.
+  repeated DockerPort ports = 7;
+}
+
+message DockerPort {
+  string ip = 1;
+  uint32 private_port = 2;
+  // 0 if not published.
+  uint32 public_port = 3;
+  // "tcp", "udp" or "sctp"
+  string protocol = 4;
+}
+
+enum DockerContainerOperation {
+  DOCKER_CONTAINER_OPERATION_UNSPECIFIED = 0;
+  DOCKER_CONTAINER_OPERATION_START = 1;
+  DOCKER_CONTAINER_OPERATION_STOP = 2;
+  DOCKER_CONTAINER_OPERATION_RESTART = 3;
+  DOCKER_CONTAINER_OPERATION_REMOVE = 4;
+}
+
+message DockerContainerControlRequest {
+  // Container reference (see above).
+  string container = 1;
+  DockerContainerOperation operation = 2;
+  // Stop and restart: seconds to wait before killing; 0 means Docker's default. Max 90.
+  uint32 timeout_seconds = 3;
+  // Remove only: also remove a running container (it is killed).
+  bool force = 4;
+  // Remove only: also remove the container's anonymous volumes (critical risk).
+  bool remove_volumes = 5;
+}
+
+message DockerContainerControlResult {
+  // Container state after the operation; for remove, the state before removal.
+  DockerContainer container = 1;
+}
+
+message DockerLogsRequest {
+  // Container reference (see above).
+  string container = 1;
+  // Number of most recent lines; 0 means 100. Capped at 500.
+  uint32 tail = 2;
+  // Only lines newer than this many seconds; 0 means no limit. Max 30 days.
+  uint32 since_seconds = 3;
+}
+
+message DockerLogsResult {
+  repeated DockerLogLine lines = 1;
+}
+
+message DockerLogLine {
+  google.protobuf.Timestamp time = 1;
+  // "stdout" or "stderr" ("stdout" for containers with a TTY).
+  string stream = 2;
+  // Truncated to 1024 bytes.
+  string message = 3;
+}
+
+message DockerStatsRequest {
+  // Optional container reference; empty means every running container (at most 100).
+  string container = 1;
+}
+
+message DockerStatsResult {
+  repeated DockerContainerStats stats = 1;
+}
+
+message DockerContainerStats {
+  string id = 1;
+  string name = 2;
+  // Percent of one CPU, as `docker stats` shows it (may exceed 100 on several CPUs).
+  double cpu_percent = 3;
+  // Memory used excluding the page cache.
+  uint64 memory_usage_bytes = 4;
+  uint64 memory_limit_bytes = 5;
+  uint64 net_rx_bytes = 6;
+  uint64 net_tx_bytes = 7;
+  uint64 block_read_bytes = 8;
+  uint64 block_write_bytes = 9;
+  uint32 pids = 10;
+}
+
+message DockerImageListRequest {}
+
+message DockerImageListResult {
+  // At most 1000 images.
+  repeated DockerImage images = 1;
+  bool truncated = 2;
+}
+
+message DockerImage {
+  string id = 1;
+  // At most 16 tags; empty for dangling images.
+  repeated string tags = 2;
+  uint64 size_bytes = 3;
+  google.protobuf.Timestamp created = 4;
+  // Containers using the image; -1 if Docker did not compute it.
+  int64 containers = 5;
+}
+
+message DockerVolumeListRequest {}
+
+message DockerVolumeListResult {
+  // At most 1000 volumes.
+  repeated DockerVolume volumes = 1;
+  bool truncated = 2;
+}
+
+message DockerVolume {
+  string name = 1;
+  string driver = 2;
+  string mountpoint = 3;
+  // RFC 3339 as reported by Docker; may be empty.
+  string created_at = 4;
+}
+
+message DockerNetworkListRequest {}
+
+message DockerNetworkListResult {
+  // At most 1000 networks.
+  repeated DockerNetwork networks = 1;
+  bool truncated = 2;
+}
+
+message DockerNetwork {
+  string id = 1;
+  string name = 2;
+  string driver = 3;
+  string scope = 4;
+  bool internal = 5;
+}
+
+enum DockerPruneTarget {
+  DOCKER_PRUNE_TARGET_UNSPECIFIED = 0;
+  // Stopped containers (medium risk).
+  DOCKER_PRUNE_TARGET_CONTAINERS = 1;
+  // Dangling images, or all unused images with all_images (medium risk).
+  DOCKER_PRUNE_TARGET_IMAGES = 2;
+  // Unused networks (medium risk).
+  DOCKER_PRUNE_TARGET_NETWORKS = 3;
+  // Unused anonymous volumes, or all unused volumes with all_volumes (critical risk:
+  // volumes hold data).
+  DOCKER_PRUNE_TARGET_VOLUMES = 4;
+  // Build cache (medium risk).
+  DOCKER_PRUNE_TARGET_BUILD_CACHE = 5;
+}
+
+message DockerPruneRequest {
+  DockerPruneTarget target = 1;
+  // Images only: remove every image without a container, not only dangling ones.
+  bool all_images = 2;
+  // Volumes only: also remove named volumes (needs Docker API 1.42+).
+  bool all_volumes = 3;
+}
+
+message DockerPruneResult {
+  // IDs or names of what was removed; at most 500 are listed.
+  repeated string deleted = 1;
+  uint32 deleted_count = 2;
+  uint64 space_reclaimed_bytes = 3;
 }
 
 // ---------------------------------------------------------------------------

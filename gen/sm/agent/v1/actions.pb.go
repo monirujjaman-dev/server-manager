@@ -311,6 +311,125 @@ func (AuthEventKind) EnumDescriptor() ([]byte, []int) {
 	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{4}
 }
 
+type DockerContainerOperation int32
+
+const (
+	DockerContainerOperation_DOCKER_CONTAINER_OPERATION_UNSPECIFIED DockerContainerOperation = 0
+	DockerContainerOperation_DOCKER_CONTAINER_OPERATION_START       DockerContainerOperation = 1
+	DockerContainerOperation_DOCKER_CONTAINER_OPERATION_STOP        DockerContainerOperation = 2
+	DockerContainerOperation_DOCKER_CONTAINER_OPERATION_RESTART     DockerContainerOperation = 3
+	DockerContainerOperation_DOCKER_CONTAINER_OPERATION_REMOVE      DockerContainerOperation = 4
+)
+
+// Enum value maps for DockerContainerOperation.
+var (
+	DockerContainerOperation_name = map[int32]string{
+		0: "DOCKER_CONTAINER_OPERATION_UNSPECIFIED",
+		1: "DOCKER_CONTAINER_OPERATION_START",
+		2: "DOCKER_CONTAINER_OPERATION_STOP",
+		3: "DOCKER_CONTAINER_OPERATION_RESTART",
+		4: "DOCKER_CONTAINER_OPERATION_REMOVE",
+	}
+	DockerContainerOperation_value = map[string]int32{
+		"DOCKER_CONTAINER_OPERATION_UNSPECIFIED": 0,
+		"DOCKER_CONTAINER_OPERATION_START":       1,
+		"DOCKER_CONTAINER_OPERATION_STOP":        2,
+		"DOCKER_CONTAINER_OPERATION_RESTART":     3,
+		"DOCKER_CONTAINER_OPERATION_REMOVE":      4,
+	}
+)
+
+func (x DockerContainerOperation) Enum() *DockerContainerOperation {
+	p := new(DockerContainerOperation)
+	*p = x
+	return p
+}
+
+func (x DockerContainerOperation) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DockerContainerOperation) Descriptor() protoreflect.EnumDescriptor {
+	return file_sm_agent_v1_actions_proto_enumTypes[5].Descriptor()
+}
+
+func (DockerContainerOperation) Type() protoreflect.EnumType {
+	return &file_sm_agent_v1_actions_proto_enumTypes[5]
+}
+
+func (x DockerContainerOperation) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DockerContainerOperation.Descriptor instead.
+func (DockerContainerOperation) EnumDescriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{5}
+}
+
+type DockerPruneTarget int32
+
+const (
+	DockerPruneTarget_DOCKER_PRUNE_TARGET_UNSPECIFIED DockerPruneTarget = 0
+	// Stopped containers (medium risk).
+	DockerPruneTarget_DOCKER_PRUNE_TARGET_CONTAINERS DockerPruneTarget = 1
+	// Dangling images, or all unused images with all_images (medium risk).
+	DockerPruneTarget_DOCKER_PRUNE_TARGET_IMAGES DockerPruneTarget = 2
+	// Unused networks (medium risk).
+	DockerPruneTarget_DOCKER_PRUNE_TARGET_NETWORKS DockerPruneTarget = 3
+	// Unused anonymous volumes, or all unused volumes with all_volumes (critical risk:
+	// volumes hold data).
+	DockerPruneTarget_DOCKER_PRUNE_TARGET_VOLUMES DockerPruneTarget = 4
+	// Build cache (medium risk).
+	DockerPruneTarget_DOCKER_PRUNE_TARGET_BUILD_CACHE DockerPruneTarget = 5
+)
+
+// Enum value maps for DockerPruneTarget.
+var (
+	DockerPruneTarget_name = map[int32]string{
+		0: "DOCKER_PRUNE_TARGET_UNSPECIFIED",
+		1: "DOCKER_PRUNE_TARGET_CONTAINERS",
+		2: "DOCKER_PRUNE_TARGET_IMAGES",
+		3: "DOCKER_PRUNE_TARGET_NETWORKS",
+		4: "DOCKER_PRUNE_TARGET_VOLUMES",
+		5: "DOCKER_PRUNE_TARGET_BUILD_CACHE",
+	}
+	DockerPruneTarget_value = map[string]int32{
+		"DOCKER_PRUNE_TARGET_UNSPECIFIED": 0,
+		"DOCKER_PRUNE_TARGET_CONTAINERS":  1,
+		"DOCKER_PRUNE_TARGET_IMAGES":      2,
+		"DOCKER_PRUNE_TARGET_NETWORKS":    3,
+		"DOCKER_PRUNE_TARGET_VOLUMES":     4,
+		"DOCKER_PRUNE_TARGET_BUILD_CACHE": 5,
+	}
+)
+
+func (x DockerPruneTarget) Enum() *DockerPruneTarget {
+	p := new(DockerPruneTarget)
+	*p = x
+	return p
+}
+
+func (x DockerPruneTarget) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DockerPruneTarget) Descriptor() protoreflect.EnumDescriptor {
+	return file_sm_agent_v1_actions_proto_enumTypes[6].Descriptor()
+}
+
+func (DockerPruneTarget) Type() protoreflect.EnumType {
+	return &file_sm_agent_v1_actions_proto_enumTypes[6]
+}
+
+func (x DockerPruneTarget) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DockerPruneTarget.Descriptor instead.
+func (DockerPruneTarget) EnumDescriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{6}
+}
+
 type CommandEnvelope struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Job UUID. Also the replay-protection key.
@@ -466,6 +585,14 @@ type ActionRequest struct {
 	//	*ActionRequest_ProcessSignal
 	//	*ActionRequest_LogQuery
 	//	*ActionRequest_AuthLog
+	//	*ActionRequest_DockerContainerList
+	//	*ActionRequest_DockerContainerControl
+	//	*ActionRequest_DockerLogs
+	//	*ActionRequest_DockerStats
+	//	*ActionRequest_DockerImageList
+	//	*ActionRequest_DockerVolumeList
+	//	*ActionRequest_DockerNetworkList
+	//	*ActionRequest_DockerPrune
 	Action        isActionRequest_Action `protobuf_oneof:"action"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -571,6 +698,78 @@ func (x *ActionRequest) GetAuthLog() *AuthLogRequest {
 	return nil
 }
 
+func (x *ActionRequest) GetDockerContainerList() *DockerContainerListRequest {
+	if x != nil {
+		if x, ok := x.Action.(*ActionRequest_DockerContainerList); ok {
+			return x.DockerContainerList
+		}
+	}
+	return nil
+}
+
+func (x *ActionRequest) GetDockerContainerControl() *DockerContainerControlRequest {
+	if x != nil {
+		if x, ok := x.Action.(*ActionRequest_DockerContainerControl); ok {
+			return x.DockerContainerControl
+		}
+	}
+	return nil
+}
+
+func (x *ActionRequest) GetDockerLogs() *DockerLogsRequest {
+	if x != nil {
+		if x, ok := x.Action.(*ActionRequest_DockerLogs); ok {
+			return x.DockerLogs
+		}
+	}
+	return nil
+}
+
+func (x *ActionRequest) GetDockerStats() *DockerStatsRequest {
+	if x != nil {
+		if x, ok := x.Action.(*ActionRequest_DockerStats); ok {
+			return x.DockerStats
+		}
+	}
+	return nil
+}
+
+func (x *ActionRequest) GetDockerImageList() *DockerImageListRequest {
+	if x != nil {
+		if x, ok := x.Action.(*ActionRequest_DockerImageList); ok {
+			return x.DockerImageList
+		}
+	}
+	return nil
+}
+
+func (x *ActionRequest) GetDockerVolumeList() *DockerVolumeListRequest {
+	if x != nil {
+		if x, ok := x.Action.(*ActionRequest_DockerVolumeList); ok {
+			return x.DockerVolumeList
+		}
+	}
+	return nil
+}
+
+func (x *ActionRequest) GetDockerNetworkList() *DockerNetworkListRequest {
+	if x != nil {
+		if x, ok := x.Action.(*ActionRequest_DockerNetworkList); ok {
+			return x.DockerNetworkList
+		}
+	}
+	return nil
+}
+
+func (x *ActionRequest) GetDockerPrune() *DockerPruneRequest {
+	if x != nil {
+		if x, ok := x.Action.(*ActionRequest_DockerPrune); ok {
+			return x.DockerPrune
+		}
+	}
+	return nil
+}
+
 type isActionRequest_Action interface {
 	isActionRequest_Action()
 }
@@ -603,6 +802,38 @@ type ActionRequest_AuthLog struct {
 	AuthLog *AuthLogRequest `protobuf:"bytes,7,opt,name=auth_log,json=authLog,proto3,oneof"`
 }
 
+type ActionRequest_DockerContainerList struct {
+	DockerContainerList *DockerContainerListRequest `protobuf:"bytes,8,opt,name=docker_container_list,json=dockerContainerList,proto3,oneof"`
+}
+
+type ActionRequest_DockerContainerControl struct {
+	DockerContainerControl *DockerContainerControlRequest `protobuf:"bytes,9,opt,name=docker_container_control,json=dockerContainerControl,proto3,oneof"`
+}
+
+type ActionRequest_DockerLogs struct {
+	DockerLogs *DockerLogsRequest `protobuf:"bytes,10,opt,name=docker_logs,json=dockerLogs,proto3,oneof"`
+}
+
+type ActionRequest_DockerStats struct {
+	DockerStats *DockerStatsRequest `protobuf:"bytes,11,opt,name=docker_stats,json=dockerStats,proto3,oneof"`
+}
+
+type ActionRequest_DockerImageList struct {
+	DockerImageList *DockerImageListRequest `protobuf:"bytes,12,opt,name=docker_image_list,json=dockerImageList,proto3,oneof"`
+}
+
+type ActionRequest_DockerVolumeList struct {
+	DockerVolumeList *DockerVolumeListRequest `protobuf:"bytes,13,opt,name=docker_volume_list,json=dockerVolumeList,proto3,oneof"`
+}
+
+type ActionRequest_DockerNetworkList struct {
+	DockerNetworkList *DockerNetworkListRequest `protobuf:"bytes,14,opt,name=docker_network_list,json=dockerNetworkList,proto3,oneof"`
+}
+
+type ActionRequest_DockerPrune struct {
+	DockerPrune *DockerPruneRequest `protobuf:"bytes,15,opt,name=docker_prune,json=dockerPrune,proto3,oneof"`
+}
+
 func (*ActionRequest_SystemInfo) isActionRequest_Action() {}
 
 func (*ActionRequest_ServiceList) isActionRequest_Action() {}
@@ -616,6 +847,22 @@ func (*ActionRequest_ProcessSignal) isActionRequest_Action() {}
 func (*ActionRequest_LogQuery) isActionRequest_Action() {}
 
 func (*ActionRequest_AuthLog) isActionRequest_Action() {}
+
+func (*ActionRequest_DockerContainerList) isActionRequest_Action() {}
+
+func (*ActionRequest_DockerContainerControl) isActionRequest_Action() {}
+
+func (*ActionRequest_DockerLogs) isActionRequest_Action() {}
+
+func (*ActionRequest_DockerStats) isActionRequest_Action() {}
+
+func (*ActionRequest_DockerImageList) isActionRequest_Action() {}
+
+func (*ActionRequest_DockerVolumeList) isActionRequest_Action() {}
+
+func (*ActionRequest_DockerNetworkList) isActionRequest_Action() {}
+
+func (*ActionRequest_DockerPrune) isActionRequest_Action() {}
 
 // CommandResult is sent from the agent to the control plane.
 type CommandResult struct {
@@ -699,6 +946,14 @@ type ActionResult struct {
 	//	*ActionResult_ProcessSignal
 	//	*ActionResult_LogQuery
 	//	*ActionResult_AuthLog
+	//	*ActionResult_DockerContainerList
+	//	*ActionResult_DockerContainerControl
+	//	*ActionResult_DockerLogs
+	//	*ActionResult_DockerStats
+	//	*ActionResult_DockerImageList
+	//	*ActionResult_DockerVolumeList
+	//	*ActionResult_DockerNetworkList
+	//	*ActionResult_DockerPrune
 	Result        isActionResult_Result `protobuf_oneof:"result"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -804,6 +1059,78 @@ func (x *ActionResult) GetAuthLog() *AuthLogResult {
 	return nil
 }
 
+func (x *ActionResult) GetDockerContainerList() *DockerContainerListResult {
+	if x != nil {
+		if x, ok := x.Result.(*ActionResult_DockerContainerList); ok {
+			return x.DockerContainerList
+		}
+	}
+	return nil
+}
+
+func (x *ActionResult) GetDockerContainerControl() *DockerContainerControlResult {
+	if x != nil {
+		if x, ok := x.Result.(*ActionResult_DockerContainerControl); ok {
+			return x.DockerContainerControl
+		}
+	}
+	return nil
+}
+
+func (x *ActionResult) GetDockerLogs() *DockerLogsResult {
+	if x != nil {
+		if x, ok := x.Result.(*ActionResult_DockerLogs); ok {
+			return x.DockerLogs
+		}
+	}
+	return nil
+}
+
+func (x *ActionResult) GetDockerStats() *DockerStatsResult {
+	if x != nil {
+		if x, ok := x.Result.(*ActionResult_DockerStats); ok {
+			return x.DockerStats
+		}
+	}
+	return nil
+}
+
+func (x *ActionResult) GetDockerImageList() *DockerImageListResult {
+	if x != nil {
+		if x, ok := x.Result.(*ActionResult_DockerImageList); ok {
+			return x.DockerImageList
+		}
+	}
+	return nil
+}
+
+func (x *ActionResult) GetDockerVolumeList() *DockerVolumeListResult {
+	if x != nil {
+		if x, ok := x.Result.(*ActionResult_DockerVolumeList); ok {
+			return x.DockerVolumeList
+		}
+	}
+	return nil
+}
+
+func (x *ActionResult) GetDockerNetworkList() *DockerNetworkListResult {
+	if x != nil {
+		if x, ok := x.Result.(*ActionResult_DockerNetworkList); ok {
+			return x.DockerNetworkList
+		}
+	}
+	return nil
+}
+
+func (x *ActionResult) GetDockerPrune() *DockerPruneResult {
+	if x != nil {
+		if x, ok := x.Result.(*ActionResult_DockerPrune); ok {
+			return x.DockerPrune
+		}
+	}
+	return nil
+}
+
 type isActionResult_Result interface {
 	isActionResult_Result()
 }
@@ -836,6 +1163,38 @@ type ActionResult_AuthLog struct {
 	AuthLog *AuthLogResult `protobuf:"bytes,7,opt,name=auth_log,json=authLog,proto3,oneof"`
 }
 
+type ActionResult_DockerContainerList struct {
+	DockerContainerList *DockerContainerListResult `protobuf:"bytes,8,opt,name=docker_container_list,json=dockerContainerList,proto3,oneof"`
+}
+
+type ActionResult_DockerContainerControl struct {
+	DockerContainerControl *DockerContainerControlResult `protobuf:"bytes,9,opt,name=docker_container_control,json=dockerContainerControl,proto3,oneof"`
+}
+
+type ActionResult_DockerLogs struct {
+	DockerLogs *DockerLogsResult `protobuf:"bytes,10,opt,name=docker_logs,json=dockerLogs,proto3,oneof"`
+}
+
+type ActionResult_DockerStats struct {
+	DockerStats *DockerStatsResult `protobuf:"bytes,11,opt,name=docker_stats,json=dockerStats,proto3,oneof"`
+}
+
+type ActionResult_DockerImageList struct {
+	DockerImageList *DockerImageListResult `protobuf:"bytes,12,opt,name=docker_image_list,json=dockerImageList,proto3,oneof"`
+}
+
+type ActionResult_DockerVolumeList struct {
+	DockerVolumeList *DockerVolumeListResult `protobuf:"bytes,13,opt,name=docker_volume_list,json=dockerVolumeList,proto3,oneof"`
+}
+
+type ActionResult_DockerNetworkList struct {
+	DockerNetworkList *DockerNetworkListResult `protobuf:"bytes,14,opt,name=docker_network_list,json=dockerNetworkList,proto3,oneof"`
+}
+
+type ActionResult_DockerPrune struct {
+	DockerPrune *DockerPruneResult `protobuf:"bytes,15,opt,name=docker_prune,json=dockerPrune,proto3,oneof"`
+}
+
 func (*ActionResult_SystemInfo) isActionResult_Result() {}
 
 func (*ActionResult_ServiceList) isActionResult_Result() {}
@@ -849,6 +1208,22 @@ func (*ActionResult_ProcessSignal) isActionResult_Result() {}
 func (*ActionResult_LogQuery) isActionResult_Result() {}
 
 func (*ActionResult_AuthLog) isActionResult_Result() {}
+
+func (*ActionResult_DockerContainerList) isActionResult_Result() {}
+
+func (*ActionResult_DockerContainerControl) isActionResult_Result() {}
+
+func (*ActionResult_DockerLogs) isActionResult_Result() {}
+
+func (*ActionResult_DockerStats) isActionResult_Result() {}
+
+func (*ActionResult_DockerImageList) isActionResult_Result() {}
+
+func (*ActionResult_DockerVolumeList) isActionResult_Result() {}
+
+func (*ActionResult_DockerNetworkList) isActionResult_Result() {}
+
+func (*ActionResult_DockerPrune) isActionResult_Result() {}
 
 type SystemInfoRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -2127,6 +2502,1385 @@ func (x *AuthEvent) GetMessage() string {
 	return ""
 }
 
+type DockerContainerListRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Also list containers that are not running.
+	All           bool `protobuf:"varint,1,opt,name=all,proto3" json:"all,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DockerContainerListRequest) Reset() {
+	*x = DockerContainerListRequest{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DockerContainerListRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DockerContainerListRequest) ProtoMessage() {}
+
+func (x *DockerContainerListRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DockerContainerListRequest.ProtoReflect.Descriptor instead.
+func (*DockerContainerListRequest) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *DockerContainerListRequest) GetAll() bool {
+	if x != nil {
+		return x.All
+	}
+	return false
+}
+
+type DockerContainerListResult struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// At most 1000 containers.
+	Containers    []*DockerContainer `protobuf:"bytes,1,rep,name=containers,proto3" json:"containers,omitempty"`
+	Truncated     bool               `protobuf:"varint,2,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DockerContainerListResult) Reset() {
+	*x = DockerContainerListResult{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DockerContainerListResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DockerContainerListResult) ProtoMessage() {}
+
+func (x *DockerContainerListResult) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DockerContainerListResult.ProtoReflect.Descriptor instead.
+func (*DockerContainerListResult) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *DockerContainerListResult) GetContainers() []*DockerContainer {
+	if x != nil {
+		return x.Containers
+	}
+	return nil
+}
+
+func (x *DockerContainerListResult) GetTruncated() bool {
+	if x != nil {
+		return x.Truncated
+	}
+	return false
+}
+
+type DockerContainer struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Full hex ID.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Primary name without the leading slash.
+	Name  string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Image string `protobuf:"bytes,3,opt,name=image,proto3" json:"image,omitempty"`
+	// e.g. "running", "exited", "paused", "restarting", "created", "dead"
+	State string `protobuf:"bytes,4,opt,name=state,proto3" json:"state,omitempty"`
+	// Human-readable status from Docker, e.g. "Up 3 hours (healthy)".
+	Status  string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	Created *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created,proto3" json:"created,omitempty"`
+	// At most 32 published ports.
+	Ports         []*DockerPort `protobuf:"bytes,7,rep,name=ports,proto3" json:"ports,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DockerContainer) Reset() {
+	*x = DockerContainer{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DockerContainer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DockerContainer) ProtoMessage() {}
+
+func (x *DockerContainer) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DockerContainer.ProtoReflect.Descriptor instead.
+func (*DockerContainer) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *DockerContainer) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *DockerContainer) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *DockerContainer) GetImage() string {
+	if x != nil {
+		return x.Image
+	}
+	return ""
+}
+
+func (x *DockerContainer) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *DockerContainer) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *DockerContainer) GetCreated() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Created
+	}
+	return nil
+}
+
+func (x *DockerContainer) GetPorts() []*DockerPort {
+	if x != nil {
+		return x.Ports
+	}
+	return nil
+}
+
+type DockerPort struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Ip          string                 `protobuf:"bytes,1,opt,name=ip,proto3" json:"ip,omitempty"`
+	PrivatePort uint32                 `protobuf:"varint,2,opt,name=private_port,json=privatePort,proto3" json:"private_port,omitempty"`
+	// 0 if not published.
+	PublicPort uint32 `protobuf:"varint,3,opt,name=public_port,json=publicPort,proto3" json:"public_port,omitempty"`
+	// "tcp", "udp" or "sctp"
+	Protocol      string `protobuf:"bytes,4,opt,name=protocol,proto3" json:"protocol,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DockerPort) Reset() {
+	*x = DockerPort{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DockerPort) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DockerPort) ProtoMessage() {}
+
+func (x *DockerPort) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DockerPort.ProtoReflect.Descriptor instead.
+func (*DockerPort) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *DockerPort) GetIp() string {
+	if x != nil {
+		return x.Ip
+	}
+	return ""
+}
+
+func (x *DockerPort) GetPrivatePort() uint32 {
+	if x != nil {
+		return x.PrivatePort
+	}
+	return 0
+}
+
+func (x *DockerPort) GetPublicPort() uint32 {
+	if x != nil {
+		return x.PublicPort
+	}
+	return 0
+}
+
+func (x *DockerPort) GetProtocol() string {
+	if x != nil {
+		return x.Protocol
+	}
+	return ""
+}
+
+type DockerContainerControlRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Container reference (see above).
+	Container string                   `protobuf:"bytes,1,opt,name=container,proto3" json:"container,omitempty"`
+	Operation DockerContainerOperation `protobuf:"varint,2,opt,name=operation,proto3,enum=sm.agent.v1.DockerContainerOperation" json:"operation,omitempty"`
+	// Stop and restart: seconds to wait before killing; 0 means Docker's default. Max 90.
+	TimeoutSeconds uint32 `protobuf:"varint,3,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
+	// Remove only: also remove a running container (it is killed).
+	Force bool `protobuf:"varint,4,opt,name=force,proto3" json:"force,omitempty"`
+	// Remove only: also remove the container's anonymous volumes (critical risk).
+	RemoveVolumes bool `protobuf:"varint,5,opt,name=remove_volumes,json=removeVolumes,proto3" json:"remove_volumes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DockerContainerControlRequest) Reset() {
+	*x = DockerContainerControlRequest{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DockerContainerControlRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DockerContainerControlRequest) ProtoMessage() {}
+
+func (x *DockerContainerControlRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DockerContainerControlRequest.ProtoReflect.Descriptor instead.
+func (*DockerContainerControlRequest) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *DockerContainerControlRequest) GetContainer() string {
+	if x != nil {
+		return x.Container
+	}
+	return ""
+}
+
+func (x *DockerContainerControlRequest) GetOperation() DockerContainerOperation {
+	if x != nil {
+		return x.Operation
+	}
+	return DockerContainerOperation_DOCKER_CONTAINER_OPERATION_UNSPECIFIED
+}
+
+func (x *DockerContainerControlRequest) GetTimeoutSeconds() uint32 {
+	if x != nil {
+		return x.TimeoutSeconds
+	}
+	return 0
+}
+
+func (x *DockerContainerControlRequest) GetForce() bool {
+	if x != nil {
+		return x.Force
+	}
+	return false
+}
+
+func (x *DockerContainerControlRequest) GetRemoveVolumes() bool {
+	if x != nil {
+		return x.RemoveVolumes
+	}
+	return false
+}
+
+type DockerContainerControlResult struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Container state after the operation; for remove, the state before removal.
+	Container     *DockerContainer `protobuf:"bytes,1,opt,name=container,proto3" json:"container,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DockerContainerControlResult) Reset() {
+	*x = DockerContainerControlResult{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DockerContainerControlResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DockerContainerControlResult) ProtoMessage() {}
+
+func (x *DockerContainerControlResult) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DockerContainerControlResult.ProtoReflect.Descriptor instead.
+func (*DockerContainerControlResult) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *DockerContainerControlResult) GetContainer() *DockerContainer {
+	if x != nil {
+		return x.Container
+	}
+	return nil
+}
+
+type DockerLogsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Container reference (see above).
+	Container string `protobuf:"bytes,1,opt,name=container,proto3" json:"container,omitempty"`
+	// Number of most recent lines; 0 means 100. Capped at 500.
+	Tail uint32 `protobuf:"varint,2,opt,name=tail,proto3" json:"tail,omitempty"`
+	// Only lines newer than this many seconds; 0 means no limit. Max 30 days.
+	SinceSeconds  uint32 `protobuf:"varint,3,opt,name=since_seconds,json=sinceSeconds,proto3" json:"since_seconds,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DockerLogsRequest) Reset() {
+	*x = DockerLogsRequest{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DockerLogsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DockerLogsRequest) ProtoMessage() {}
+
+func (x *DockerLogsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DockerLogsRequest.ProtoReflect.Descriptor instead.
+func (*DockerLogsRequest) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *DockerLogsRequest) GetContainer() string {
+	if x != nil {
+		return x.Container
+	}
+	return ""
+}
+
+func (x *DockerLogsRequest) GetTail() uint32 {
+	if x != nil {
+		return x.Tail
+	}
+	return 0
+}
+
+func (x *DockerLogsRequest) GetSinceSeconds() uint32 {
+	if x != nil {
+		return x.SinceSeconds
+	}
+	return 0
+}
+
+type DockerLogsResult struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Lines         []*DockerLogLine       `protobuf:"bytes,1,rep,name=lines,proto3" json:"lines,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DockerLogsResult) Reset() {
+	*x = DockerLogsResult{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DockerLogsResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DockerLogsResult) ProtoMessage() {}
+
+func (x *DockerLogsResult) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DockerLogsResult.ProtoReflect.Descriptor instead.
+func (*DockerLogsResult) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *DockerLogsResult) GetLines() []*DockerLogLine {
+	if x != nil {
+		return x.Lines
+	}
+	return nil
+}
+
+type DockerLogLine struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Time  *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=time,proto3" json:"time,omitempty"`
+	// "stdout" or "stderr" ("stdout" for containers with a TTY).
+	Stream string `protobuf:"bytes,2,opt,name=stream,proto3" json:"stream,omitempty"`
+	// Truncated to 1024 bytes.
+	Message       string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DockerLogLine) Reset() {
+	*x = DockerLogLine{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DockerLogLine) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DockerLogLine) ProtoMessage() {}
+
+func (x *DockerLogLine) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DockerLogLine.ProtoReflect.Descriptor instead.
+func (*DockerLogLine) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *DockerLogLine) GetTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Time
+	}
+	return nil
+}
+
+func (x *DockerLogLine) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
+func (x *DockerLogLine) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type DockerStatsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional container reference; empty means every running container (at most 100).
+	Container     string `protobuf:"bytes,1,opt,name=container,proto3" json:"container,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DockerStatsRequest) Reset() {
+	*x = DockerStatsRequest{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DockerStatsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DockerStatsRequest) ProtoMessage() {}
+
+func (x *DockerStatsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DockerStatsRequest.ProtoReflect.Descriptor instead.
+func (*DockerStatsRequest) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *DockerStatsRequest) GetContainer() string {
+	if x != nil {
+		return x.Container
+	}
+	return ""
+}
+
+type DockerStatsResult struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Stats         []*DockerContainerStats `protobuf:"bytes,1,rep,name=stats,proto3" json:"stats,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DockerStatsResult) Reset() {
+	*x = DockerStatsResult{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DockerStatsResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DockerStatsResult) ProtoMessage() {}
+
+func (x *DockerStatsResult) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DockerStatsResult.ProtoReflect.Descriptor instead.
+func (*DockerStatsResult) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *DockerStatsResult) GetStats() []*DockerContainerStats {
+	if x != nil {
+		return x.Stats
+	}
+	return nil
+}
+
+type DockerContainerStats struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name  string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// Percent of one CPU, as `docker stats` shows it (may exceed 100 on several CPUs).
+	CpuPercent float64 `protobuf:"fixed64,3,opt,name=cpu_percent,json=cpuPercent,proto3" json:"cpu_percent,omitempty"`
+	// Memory used excluding the page cache.
+	MemoryUsageBytes uint64 `protobuf:"varint,4,opt,name=memory_usage_bytes,json=memoryUsageBytes,proto3" json:"memory_usage_bytes,omitempty"`
+	MemoryLimitBytes uint64 `protobuf:"varint,5,opt,name=memory_limit_bytes,json=memoryLimitBytes,proto3" json:"memory_limit_bytes,omitempty"`
+	NetRxBytes       uint64 `protobuf:"varint,6,opt,name=net_rx_bytes,json=netRxBytes,proto3" json:"net_rx_bytes,omitempty"`
+	NetTxBytes       uint64 `protobuf:"varint,7,opt,name=net_tx_bytes,json=netTxBytes,proto3" json:"net_tx_bytes,omitempty"`
+	BlockReadBytes   uint64 `protobuf:"varint,8,opt,name=block_read_bytes,json=blockReadBytes,proto3" json:"block_read_bytes,omitempty"`
+	BlockWriteBytes  uint64 `protobuf:"varint,9,opt,name=block_write_bytes,json=blockWriteBytes,proto3" json:"block_write_bytes,omitempty"`
+	Pids             uint32 `protobuf:"varint,10,opt,name=pids,proto3" json:"pids,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *DockerContainerStats) Reset() {
+	*x = DockerContainerStats{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DockerContainerStats) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DockerContainerStats) ProtoMessage() {}
+
+func (x *DockerContainerStats) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DockerContainerStats.ProtoReflect.Descriptor instead.
+func (*DockerContainerStats) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *DockerContainerStats) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *DockerContainerStats) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *DockerContainerStats) GetCpuPercent() float64 {
+	if x != nil {
+		return x.CpuPercent
+	}
+	return 0
+}
+
+func (x *DockerContainerStats) GetMemoryUsageBytes() uint64 {
+	if x != nil {
+		return x.MemoryUsageBytes
+	}
+	return 0
+}
+
+func (x *DockerContainerStats) GetMemoryLimitBytes() uint64 {
+	if x != nil {
+		return x.MemoryLimitBytes
+	}
+	return 0
+}
+
+func (x *DockerContainerStats) GetNetRxBytes() uint64 {
+	if x != nil {
+		return x.NetRxBytes
+	}
+	return 0
+}
+
+func (x *DockerContainerStats) GetNetTxBytes() uint64 {
+	if x != nil {
+		return x.NetTxBytes
+	}
+	return 0
+}
+
+func (x *DockerContainerStats) GetBlockReadBytes() uint64 {
+	if x != nil {
+		return x.BlockReadBytes
+	}
+	return 0
+}
+
+func (x *DockerContainerStats) GetBlockWriteBytes() uint64 {
+	if x != nil {
+		return x.BlockWriteBytes
+	}
+	return 0
+}
+
+func (x *DockerContainerStats) GetPids() uint32 {
+	if x != nil {
+		return x.Pids
+	}
+	return 0
+}
+
+type DockerImageListRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DockerImageListRequest) Reset() {
+	*x = DockerImageListRequest{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DockerImageListRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DockerImageListRequest) ProtoMessage() {}
+
+func (x *DockerImageListRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DockerImageListRequest.ProtoReflect.Descriptor instead.
+func (*DockerImageListRequest) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{36}
+}
+
+type DockerImageListResult struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// At most 1000 images.
+	Images        []*DockerImage `protobuf:"bytes,1,rep,name=images,proto3" json:"images,omitempty"`
+	Truncated     bool           `protobuf:"varint,2,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DockerImageListResult) Reset() {
+	*x = DockerImageListResult{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DockerImageListResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DockerImageListResult) ProtoMessage() {}
+
+func (x *DockerImageListResult) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DockerImageListResult.ProtoReflect.Descriptor instead.
+func (*DockerImageListResult) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *DockerImageListResult) GetImages() []*DockerImage {
+	if x != nil {
+		return x.Images
+	}
+	return nil
+}
+
+func (x *DockerImageListResult) GetTruncated() bool {
+	if x != nil {
+		return x.Truncated
+	}
+	return false
+}
+
+type DockerImage struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// At most 16 tags; empty for dangling images.
+	Tags      []string               `protobuf:"bytes,2,rep,name=tags,proto3" json:"tags,omitempty"`
+	SizeBytes uint64                 `protobuf:"varint,3,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	Created   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created,proto3" json:"created,omitempty"`
+	// Containers using the image; -1 if Docker did not compute it.
+	Containers    int64 `protobuf:"varint,5,opt,name=containers,proto3" json:"containers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DockerImage) Reset() {
+	*x = DockerImage{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DockerImage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DockerImage) ProtoMessage() {}
+
+func (x *DockerImage) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DockerImage.ProtoReflect.Descriptor instead.
+func (*DockerImage) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *DockerImage) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *DockerImage) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
+func (x *DockerImage) GetSizeBytes() uint64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+func (x *DockerImage) GetCreated() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Created
+	}
+	return nil
+}
+
+func (x *DockerImage) GetContainers() int64 {
+	if x != nil {
+		return x.Containers
+	}
+	return 0
+}
+
+type DockerVolumeListRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DockerVolumeListRequest) Reset() {
+	*x = DockerVolumeListRequest{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DockerVolumeListRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DockerVolumeListRequest) ProtoMessage() {}
+
+func (x *DockerVolumeListRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DockerVolumeListRequest.ProtoReflect.Descriptor instead.
+func (*DockerVolumeListRequest) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{39}
+}
+
+type DockerVolumeListResult struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// At most 1000 volumes.
+	Volumes       []*DockerVolume `protobuf:"bytes,1,rep,name=volumes,proto3" json:"volumes,omitempty"`
+	Truncated     bool            `protobuf:"varint,2,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DockerVolumeListResult) Reset() {
+	*x = DockerVolumeListResult{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DockerVolumeListResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DockerVolumeListResult) ProtoMessage() {}
+
+func (x *DockerVolumeListResult) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DockerVolumeListResult.ProtoReflect.Descriptor instead.
+func (*DockerVolumeListResult) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *DockerVolumeListResult) GetVolumes() []*DockerVolume {
+	if x != nil {
+		return x.Volumes
+	}
+	return nil
+}
+
+func (x *DockerVolumeListResult) GetTruncated() bool {
+	if x != nil {
+		return x.Truncated
+	}
+	return false
+}
+
+type DockerVolume struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Name       string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Driver     string                 `protobuf:"bytes,2,opt,name=driver,proto3" json:"driver,omitempty"`
+	Mountpoint string                 `protobuf:"bytes,3,opt,name=mountpoint,proto3" json:"mountpoint,omitempty"`
+	// RFC 3339 as reported by Docker; may be empty.
+	CreatedAt     string `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DockerVolume) Reset() {
+	*x = DockerVolume{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DockerVolume) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DockerVolume) ProtoMessage() {}
+
+func (x *DockerVolume) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DockerVolume.ProtoReflect.Descriptor instead.
+func (*DockerVolume) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *DockerVolume) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *DockerVolume) GetDriver() string {
+	if x != nil {
+		return x.Driver
+	}
+	return ""
+}
+
+func (x *DockerVolume) GetMountpoint() string {
+	if x != nil {
+		return x.Mountpoint
+	}
+	return ""
+}
+
+func (x *DockerVolume) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+type DockerNetworkListRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DockerNetworkListRequest) Reset() {
+	*x = DockerNetworkListRequest{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DockerNetworkListRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DockerNetworkListRequest) ProtoMessage() {}
+
+func (x *DockerNetworkListRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DockerNetworkListRequest.ProtoReflect.Descriptor instead.
+func (*DockerNetworkListRequest) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{42}
+}
+
+type DockerNetworkListResult struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// At most 1000 networks.
+	Networks      []*DockerNetwork `protobuf:"bytes,1,rep,name=networks,proto3" json:"networks,omitempty"`
+	Truncated     bool             `protobuf:"varint,2,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DockerNetworkListResult) Reset() {
+	*x = DockerNetworkListResult{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DockerNetworkListResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DockerNetworkListResult) ProtoMessage() {}
+
+func (x *DockerNetworkListResult) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DockerNetworkListResult.ProtoReflect.Descriptor instead.
+func (*DockerNetworkListResult) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *DockerNetworkListResult) GetNetworks() []*DockerNetwork {
+	if x != nil {
+		return x.Networks
+	}
+	return nil
+}
+
+func (x *DockerNetworkListResult) GetTruncated() bool {
+	if x != nil {
+		return x.Truncated
+	}
+	return false
+}
+
+type DockerNetwork struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Driver        string                 `protobuf:"bytes,3,opt,name=driver,proto3" json:"driver,omitempty"`
+	Scope         string                 `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"`
+	Internal      bool                   `protobuf:"varint,5,opt,name=internal,proto3" json:"internal,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DockerNetwork) Reset() {
+	*x = DockerNetwork{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DockerNetwork) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DockerNetwork) ProtoMessage() {}
+
+func (x *DockerNetwork) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DockerNetwork.ProtoReflect.Descriptor instead.
+func (*DockerNetwork) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *DockerNetwork) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *DockerNetwork) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *DockerNetwork) GetDriver() string {
+	if x != nil {
+		return x.Driver
+	}
+	return ""
+}
+
+func (x *DockerNetwork) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *DockerNetwork) GetInternal() bool {
+	if x != nil {
+		return x.Internal
+	}
+	return false
+}
+
+type DockerPruneRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Target DockerPruneTarget      `protobuf:"varint,1,opt,name=target,proto3,enum=sm.agent.v1.DockerPruneTarget" json:"target,omitempty"`
+	// Images only: remove every image without a container, not only dangling ones.
+	AllImages bool `protobuf:"varint,2,opt,name=all_images,json=allImages,proto3" json:"all_images,omitempty"`
+	// Volumes only: also remove named volumes (needs Docker API 1.42+).
+	AllVolumes    bool `protobuf:"varint,3,opt,name=all_volumes,json=allVolumes,proto3" json:"all_volumes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DockerPruneRequest) Reset() {
+	*x = DockerPruneRequest{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DockerPruneRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DockerPruneRequest) ProtoMessage() {}
+
+func (x *DockerPruneRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DockerPruneRequest.ProtoReflect.Descriptor instead.
+func (*DockerPruneRequest) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *DockerPruneRequest) GetTarget() DockerPruneTarget {
+	if x != nil {
+		return x.Target
+	}
+	return DockerPruneTarget_DOCKER_PRUNE_TARGET_UNSPECIFIED
+}
+
+func (x *DockerPruneRequest) GetAllImages() bool {
+	if x != nil {
+		return x.AllImages
+	}
+	return false
+}
+
+func (x *DockerPruneRequest) GetAllVolumes() bool {
+	if x != nil {
+		return x.AllVolumes
+	}
+	return false
+}
+
+type DockerPruneResult struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// IDs or names of what was removed; at most 500 are listed.
+	Deleted             []string `protobuf:"bytes,1,rep,name=deleted,proto3" json:"deleted,omitempty"`
+	DeletedCount        uint32   `protobuf:"varint,2,opt,name=deleted_count,json=deletedCount,proto3" json:"deleted_count,omitempty"`
+	SpaceReclaimedBytes uint64   `protobuf:"varint,3,opt,name=space_reclaimed_bytes,json=spaceReclaimedBytes,proto3" json:"space_reclaimed_bytes,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *DockerPruneResult) Reset() {
+	*x = DockerPruneResult{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DockerPruneResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DockerPruneResult) ProtoMessage() {}
+
+func (x *DockerPruneResult) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DockerPruneResult.ProtoReflect.Descriptor instead.
+func (*DockerPruneResult) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *DockerPruneResult) GetDeleted() []string {
+	if x != nil {
+		return x.Deleted
+	}
+	return nil
+}
+
+func (x *DockerPruneResult) GetDeletedCount() uint32 {
+	if x != nil {
+		return x.DeletedCount
+	}
+	return 0
+}
+
+func (x *DockerPruneResult) GetSpaceReclaimedBytes() uint64 {
+	if x != nil {
+		return x.SpaceReclaimedBytes
+	}
+	return 0
+}
+
 type ExecuteRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Command       *Command               `protobuf:"bytes,1,opt,name=command,proto3" json:"command,omitempty"`
@@ -2136,7 +3890,7 @@ type ExecuteRequest struct {
 
 func (x *ExecuteRequest) Reset() {
 	*x = ExecuteRequest{}
-	mi := &file_sm_agent_v1_actions_proto_msgTypes[24]
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2148,7 +3902,7 @@ func (x *ExecuteRequest) String() string {
 func (*ExecuteRequest) ProtoMessage() {}
 
 func (x *ExecuteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sm_agent_v1_actions_proto_msgTypes[24]
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2161,7 +3915,7 @@ func (x *ExecuteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecuteRequest.ProtoReflect.Descriptor instead.
 func (*ExecuteRequest) Descriptor() ([]byte, []int) {
-	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{24}
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *ExecuteRequest) GetCommand() *Command {
@@ -2180,7 +3934,7 @@ type ExecuteResponse struct {
 
 func (x *ExecuteResponse) Reset() {
 	*x = ExecuteResponse{}
-	mi := &file_sm_agent_v1_actions_proto_msgTypes[25]
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2192,7 +3946,7 @@ func (x *ExecuteResponse) String() string {
 func (*ExecuteResponse) ProtoMessage() {}
 
 func (x *ExecuteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sm_agent_v1_actions_proto_msgTypes[25]
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2205,7 +3959,7 @@ func (x *ExecuteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecuteResponse.ProtoReflect.Descriptor instead.
 func (*ExecuteResponse) Descriptor() ([]byte, []int) {
-	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{25}
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *ExecuteResponse) GetResult() *CommandResult {
@@ -2230,7 +3984,7 @@ const file_sm_agent_v1_actions_proto_rawDesc = "" +
 	"\arequest\x18\x06 \x01(\v2\x1a.sm.agent.v1.ActionRequestR\arequest\"C\n" +
 	"\aCommand\x12\x1a\n" +
 	"\benvelope\x18\x01 \x01(\fR\benvelope\x12\x1c\n" +
-	"\tsignature\x18\x02 \x01(\fR\tsignature\"\xfa\x03\n" +
+	"\tsignature\x18\x02 \x01(\fR\tsignature\"\x92\t\n" +
 	"\rActionRequest\x12A\n" +
 	"\vsystem_info\x18\x01 \x01(\v2\x1e.sm.agent.v1.SystemInfoRequestH\x00R\n" +
 	"systemInfo\x12D\n" +
@@ -2239,13 +3993,23 @@ const file_sm_agent_v1_actions_proto_rawDesc = "" +
 	"\fprocess_list\x18\x04 \x01(\v2\x1f.sm.agent.v1.ProcessListRequestH\x00R\vprocessList\x12J\n" +
 	"\x0eprocess_signal\x18\x05 \x01(\v2!.sm.agent.v1.ProcessSignalRequestH\x00R\rprocessSignal\x12;\n" +
 	"\tlog_query\x18\x06 \x01(\v2\x1c.sm.agent.v1.LogQueryRequestH\x00R\blogQuery\x128\n" +
-	"\bauth_log\x18\a \x01(\v2\x1b.sm.agent.v1.AuthLogRequestH\x00R\aauthLogB\b\n" +
+	"\bauth_log\x18\a \x01(\v2\x1b.sm.agent.v1.AuthLogRequestH\x00R\aauthLog\x12]\n" +
+	"\x15docker_container_list\x18\b \x01(\v2'.sm.agent.v1.DockerContainerListRequestH\x00R\x13dockerContainerList\x12f\n" +
+	"\x18docker_container_control\x18\t \x01(\v2*.sm.agent.v1.DockerContainerControlRequestH\x00R\x16dockerContainerControl\x12A\n" +
+	"\vdocker_logs\x18\n" +
+	" \x01(\v2\x1e.sm.agent.v1.DockerLogsRequestH\x00R\n" +
+	"dockerLogs\x12D\n" +
+	"\fdocker_stats\x18\v \x01(\v2\x1f.sm.agent.v1.DockerStatsRequestH\x00R\vdockerStats\x12Q\n" +
+	"\x11docker_image_list\x18\f \x01(\v2#.sm.agent.v1.DockerImageListRequestH\x00R\x0fdockerImageList\x12T\n" +
+	"\x12docker_volume_list\x18\r \x01(\v2$.sm.agent.v1.DockerVolumeListRequestH\x00R\x10dockerVolumeList\x12W\n" +
+	"\x13docker_network_list\x18\x0e \x01(\v2%.sm.agent.v1.DockerNetworkListRequestH\x00R\x11dockerNetworkList\x12D\n" +
+	"\fdocker_prune\x18\x0f \x01(\v2\x1f.sm.agent.v1.DockerPruneRequestH\x00R\vdockerPruneB\b\n" +
 	"\x06action\"\x9c\x01\n" +
 	"\rCommandResult\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x122\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x1a.sm.agent.v1.CommandStatusR\x06status\x12\x14\n" +
 	"\x05error\x18\x03 \x01(\tR\x05error\x121\n" +
-	"\x06result\x18\x04 \x01(\v2\x19.sm.agent.v1.ActionResultR\x06result\"\xf2\x03\n" +
+	"\x06result\x18\x04 \x01(\v2\x19.sm.agent.v1.ActionResultR\x06result\"\x82\t\n" +
 	"\fActionResult\x12@\n" +
 	"\vsystem_info\x18\x01 \x01(\v2\x1d.sm.agent.v1.SystemInfoResultH\x00R\n" +
 	"systemInfo\x12C\n" +
@@ -2254,7 +4018,17 @@ const file_sm_agent_v1_actions_proto_rawDesc = "" +
 	"\fprocess_list\x18\x04 \x01(\v2\x1e.sm.agent.v1.ProcessListResultH\x00R\vprocessList\x12I\n" +
 	"\x0eprocess_signal\x18\x05 \x01(\v2 .sm.agent.v1.ProcessSignalResultH\x00R\rprocessSignal\x12:\n" +
 	"\tlog_query\x18\x06 \x01(\v2\x1b.sm.agent.v1.LogQueryResultH\x00R\blogQuery\x127\n" +
-	"\bauth_log\x18\a \x01(\v2\x1a.sm.agent.v1.AuthLogResultH\x00R\aauthLogB\b\n" +
+	"\bauth_log\x18\a \x01(\v2\x1a.sm.agent.v1.AuthLogResultH\x00R\aauthLog\x12\\\n" +
+	"\x15docker_container_list\x18\b \x01(\v2&.sm.agent.v1.DockerContainerListResultH\x00R\x13dockerContainerList\x12e\n" +
+	"\x18docker_container_control\x18\t \x01(\v2).sm.agent.v1.DockerContainerControlResultH\x00R\x16dockerContainerControl\x12@\n" +
+	"\vdocker_logs\x18\n" +
+	" \x01(\v2\x1d.sm.agent.v1.DockerLogsResultH\x00R\n" +
+	"dockerLogs\x12C\n" +
+	"\fdocker_stats\x18\v \x01(\v2\x1e.sm.agent.v1.DockerStatsResultH\x00R\vdockerStats\x12P\n" +
+	"\x11docker_image_list\x18\f \x01(\v2\".sm.agent.v1.DockerImageListResultH\x00R\x0fdockerImageList\x12S\n" +
+	"\x12docker_volume_list\x18\r \x01(\v2#.sm.agent.v1.DockerVolumeListResultH\x00R\x10dockerVolumeList\x12V\n" +
+	"\x13docker_network_list\x18\x0e \x01(\v2$.sm.agent.v1.DockerNetworkListResultH\x00R\x11dockerNetworkList\x12C\n" +
+	"\fdocker_prune\x18\x0f \x01(\v2\x1e.sm.agent.v1.DockerPruneResultH\x00R\vdockerPruneB\b\n" +
 	"\x06result\"\x13\n" +
 	"\x11SystemInfoRequest\"\xa7\x03\n" +
 	"\x10SystemInfoResult\x12\x1a\n" +
@@ -2359,7 +4133,111 @@ const file_sm_agent_v1_actions_proto_rawDesc = "" +
 	"\vtarget_user\x18\x06 \x01(\tR\n" +
 	"targetUser\x12\x18\n" +
 	"\acommand\x18\a \x01(\tR\acommand\x12\x18\n" +
-	"\amessage\x18\b \x01(\tR\amessage\"@\n" +
+	"\amessage\x18\b \x01(\tR\amessage\".\n" +
+	"\x1aDockerContainerListRequest\x12\x10\n" +
+	"\x03all\x18\x01 \x01(\bR\x03all\"w\n" +
+	"\x19DockerContainerListResult\x12<\n" +
+	"\n" +
+	"containers\x18\x01 \x03(\v2\x1c.sm.agent.v1.DockerContainerR\n" +
+	"containers\x12\x1c\n" +
+	"\ttruncated\x18\x02 \x01(\bR\ttruncated\"\xde\x01\n" +
+	"\x0fDockerContainer\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
+	"\x05image\x18\x03 \x01(\tR\x05image\x12\x14\n" +
+	"\x05state\x18\x04 \x01(\tR\x05state\x12\x16\n" +
+	"\x06status\x18\x05 \x01(\tR\x06status\x124\n" +
+	"\acreated\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\acreated\x12-\n" +
+	"\x05ports\x18\a \x03(\v2\x17.sm.agent.v1.DockerPortR\x05ports\"|\n" +
+	"\n" +
+	"DockerPort\x12\x0e\n" +
+	"\x02ip\x18\x01 \x01(\tR\x02ip\x12!\n" +
+	"\fprivate_port\x18\x02 \x01(\rR\vprivatePort\x12\x1f\n" +
+	"\vpublic_port\x18\x03 \x01(\rR\n" +
+	"publicPort\x12\x1a\n" +
+	"\bprotocol\x18\x04 \x01(\tR\bprotocol\"\xe8\x01\n" +
+	"\x1dDockerContainerControlRequest\x12\x1c\n" +
+	"\tcontainer\x18\x01 \x01(\tR\tcontainer\x12C\n" +
+	"\toperation\x18\x02 \x01(\x0e2%.sm.agent.v1.DockerContainerOperationR\toperation\x12'\n" +
+	"\x0ftimeout_seconds\x18\x03 \x01(\rR\x0etimeoutSeconds\x12\x14\n" +
+	"\x05force\x18\x04 \x01(\bR\x05force\x12%\n" +
+	"\x0eremove_volumes\x18\x05 \x01(\bR\rremoveVolumes\"Z\n" +
+	"\x1cDockerContainerControlResult\x12:\n" +
+	"\tcontainer\x18\x01 \x01(\v2\x1c.sm.agent.v1.DockerContainerR\tcontainer\"j\n" +
+	"\x11DockerLogsRequest\x12\x1c\n" +
+	"\tcontainer\x18\x01 \x01(\tR\tcontainer\x12\x12\n" +
+	"\x04tail\x18\x02 \x01(\rR\x04tail\x12#\n" +
+	"\rsince_seconds\x18\x03 \x01(\rR\fsinceSeconds\"D\n" +
+	"\x10DockerLogsResult\x120\n" +
+	"\x05lines\x18\x01 \x03(\v2\x1a.sm.agent.v1.DockerLogLineR\x05lines\"q\n" +
+	"\rDockerLogLine\x12.\n" +
+	"\x04time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x04time\x12\x16\n" +
+	"\x06stream\x18\x02 \x01(\tR\x06stream\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"2\n" +
+	"\x12DockerStatsRequest\x12\x1c\n" +
+	"\tcontainer\x18\x01 \x01(\tR\tcontainer\"L\n" +
+	"\x11DockerStatsResult\x127\n" +
+	"\x05stats\x18\x01 \x03(\v2!.sm.agent.v1.DockerContainerStatsR\x05stats\"\xe5\x02\n" +
+	"\x14DockerContainerStats\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1f\n" +
+	"\vcpu_percent\x18\x03 \x01(\x01R\n" +
+	"cpuPercent\x12,\n" +
+	"\x12memory_usage_bytes\x18\x04 \x01(\x04R\x10memoryUsageBytes\x12,\n" +
+	"\x12memory_limit_bytes\x18\x05 \x01(\x04R\x10memoryLimitBytes\x12 \n" +
+	"\fnet_rx_bytes\x18\x06 \x01(\x04R\n" +
+	"netRxBytes\x12 \n" +
+	"\fnet_tx_bytes\x18\a \x01(\x04R\n" +
+	"netTxBytes\x12(\n" +
+	"\x10block_read_bytes\x18\b \x01(\x04R\x0eblockReadBytes\x12*\n" +
+	"\x11block_write_bytes\x18\t \x01(\x04R\x0fblockWriteBytes\x12\x12\n" +
+	"\x04pids\x18\n" +
+	" \x01(\rR\x04pids\"\x18\n" +
+	"\x16DockerImageListRequest\"g\n" +
+	"\x15DockerImageListResult\x120\n" +
+	"\x06images\x18\x01 \x03(\v2\x18.sm.agent.v1.DockerImageR\x06images\x12\x1c\n" +
+	"\ttruncated\x18\x02 \x01(\bR\ttruncated\"\xa6\x01\n" +
+	"\vDockerImage\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04tags\x18\x02 \x03(\tR\x04tags\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\x03 \x01(\x04R\tsizeBytes\x124\n" +
+	"\acreated\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\acreated\x12\x1e\n" +
+	"\n" +
+	"containers\x18\x05 \x01(\x03R\n" +
+	"containers\"\x19\n" +
+	"\x17DockerVolumeListRequest\"k\n" +
+	"\x16DockerVolumeListResult\x123\n" +
+	"\avolumes\x18\x01 \x03(\v2\x19.sm.agent.v1.DockerVolumeR\avolumes\x12\x1c\n" +
+	"\ttruncated\x18\x02 \x01(\bR\ttruncated\"y\n" +
+	"\fDockerVolume\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
+	"\x06driver\x18\x02 \x01(\tR\x06driver\x12\x1e\n" +
+	"\n" +
+	"mountpoint\x18\x03 \x01(\tR\n" +
+	"mountpoint\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x04 \x01(\tR\tcreatedAt\"\x1a\n" +
+	"\x18DockerNetworkListRequest\"o\n" +
+	"\x17DockerNetworkListResult\x126\n" +
+	"\bnetworks\x18\x01 \x03(\v2\x1a.sm.agent.v1.DockerNetworkR\bnetworks\x12\x1c\n" +
+	"\ttruncated\x18\x02 \x01(\bR\ttruncated\"}\n" +
+	"\rDockerNetwork\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
+	"\x06driver\x18\x03 \x01(\tR\x06driver\x12\x14\n" +
+	"\x05scope\x18\x04 \x01(\tR\x05scope\x12\x1a\n" +
+	"\binternal\x18\x05 \x01(\bR\binternal\"\x8c\x01\n" +
+	"\x12DockerPruneRequest\x126\n" +
+	"\x06target\x18\x01 \x01(\x0e2\x1e.sm.agent.v1.DockerPruneTargetR\x06target\x12\x1d\n" +
+	"\n" +
+	"all_images\x18\x02 \x01(\bR\tallImages\x12\x1f\n" +
+	"\vall_volumes\x18\x03 \x01(\bR\n" +
+	"allVolumes\"\x86\x01\n" +
+	"\x11DockerPruneResult\x12\x18\n" +
+	"\adeleted\x18\x01 \x03(\tR\adeleted\x12#\n" +
+	"\rdeleted_count\x18\x02 \x01(\rR\fdeletedCount\x122\n" +
+	"\x15space_reclaimed_bytes\x18\x03 \x01(\x04R\x13spaceReclaimedBytes\"@\n" +
 	"\x0eExecuteRequest\x12.\n" +
 	"\acommand\x18\x01 \x01(\v2\x14.sm.agent.v1.CommandR\acommand\"E\n" +
 	"\x0fExecuteResponse\x122\n" +
@@ -2399,7 +4277,20 @@ const file_sm_agent_v1_actions_proto_rawDesc = "" +
 	"\x1aAUTH_EVENT_KIND_SSH_FAILED\x10\x02\x12$\n" +
 	" AUTH_EVENT_KIND_SSH_INVALID_USER\x10\x03\x12\x18\n" +
 	"\x14AUTH_EVENT_KIND_SUDO\x10\x04\x12\x1f\n" +
-	"\x1bAUTH_EVENT_KIND_SUDO_FAILED\x10\x052Y\n" +
+	"\x1bAUTH_EVENT_KIND_SUDO_FAILED\x10\x05*\xe0\x01\n" +
+	"\x18DockerContainerOperation\x12*\n" +
+	"&DOCKER_CONTAINER_OPERATION_UNSPECIFIED\x10\x00\x12$\n" +
+	" DOCKER_CONTAINER_OPERATION_START\x10\x01\x12#\n" +
+	"\x1fDOCKER_CONTAINER_OPERATION_STOP\x10\x02\x12&\n" +
+	"\"DOCKER_CONTAINER_OPERATION_RESTART\x10\x03\x12%\n" +
+	"!DOCKER_CONTAINER_OPERATION_REMOVE\x10\x04*\xe4\x01\n" +
+	"\x11DockerPruneTarget\x12#\n" +
+	"\x1fDOCKER_PRUNE_TARGET_UNSPECIFIED\x10\x00\x12\"\n" +
+	"\x1eDOCKER_PRUNE_TARGET_CONTAINERS\x10\x01\x12\x1e\n" +
+	"\x1aDOCKER_PRUNE_TARGET_IMAGES\x10\x02\x12 \n" +
+	"\x1cDOCKER_PRUNE_TARGET_NETWORKS\x10\x03\x12\x1f\n" +
+	"\x1bDOCKER_PRUNE_TARGET_VOLUMES\x10\x04\x12#\n" +
+	"\x1fDOCKER_PRUNE_TARGET_BUILD_CACHE\x10\x052Y\n" +
 	"\x11PrivilegedService\x12D\n" +
 	"\aExecute\x12\x1b.sm.agent.v1.ExecuteRequest\x1a\x1c.sm.agent.v1.ExecuteResponseB\xb1\x01\n" +
 	"\x0fcom.sm.agent.v1B\fActionsProtoP\x01ZBgithub.com/monirujjaman-dev/server-manager/gen/sm/agent/v1;agentv1\xa2\x02\x03SAX\xaa\x02\vSm.Agent.V1\xca\x02\vSm\\Agent\\V1\xe2\x02\x17Sm\\Agent\\V1\\GPBMetadata\xea\x02\rSm::Agent::V1b\x06proto3"
@@ -2416,83 +4307,137 @@ func file_sm_agent_v1_actions_proto_rawDescGZIP() []byte {
 	return file_sm_agent_v1_actions_proto_rawDescData
 }
 
-var file_sm_agent_v1_actions_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_sm_agent_v1_actions_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
+var file_sm_agent_v1_actions_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
+var file_sm_agent_v1_actions_proto_msgTypes = make([]protoimpl.MessageInfo, 49)
 var file_sm_agent_v1_actions_proto_goTypes = []any{
-	(CommandStatus)(0),            // 0: sm.agent.v1.CommandStatus
-	(ServiceOperation)(0),         // 1: sm.agent.v1.ServiceOperation
-	(ProcessSort)(0),              // 2: sm.agent.v1.ProcessSort
-	(Signal)(0),                   // 3: sm.agent.v1.Signal
-	(AuthEventKind)(0),            // 4: sm.agent.v1.AuthEventKind
-	(*CommandEnvelope)(nil),       // 5: sm.agent.v1.CommandEnvelope
-	(*Command)(nil),               // 6: sm.agent.v1.Command
-	(*ActionRequest)(nil),         // 7: sm.agent.v1.ActionRequest
-	(*CommandResult)(nil),         // 8: sm.agent.v1.CommandResult
-	(*ActionResult)(nil),          // 9: sm.agent.v1.ActionResult
-	(*SystemInfoRequest)(nil),     // 10: sm.agent.v1.SystemInfoRequest
-	(*SystemInfoResult)(nil),      // 11: sm.agent.v1.SystemInfoResult
-	(*Filesystem)(nil),            // 12: sm.agent.v1.Filesystem
-	(*ServiceListRequest)(nil),    // 13: sm.agent.v1.ServiceListRequest
-	(*ServiceListResult)(nil),     // 14: sm.agent.v1.ServiceListResult
-	(*ServiceUnit)(nil),           // 15: sm.agent.v1.ServiceUnit
-	(*ServiceControlRequest)(nil), // 16: sm.agent.v1.ServiceControlRequest
-	(*ServiceControlResult)(nil),  // 17: sm.agent.v1.ServiceControlResult
-	(*ProcessListRequest)(nil),    // 18: sm.agent.v1.ProcessListRequest
-	(*ProcessListResult)(nil),     // 19: sm.agent.v1.ProcessListResult
-	(*Process)(nil),               // 20: sm.agent.v1.Process
-	(*ProcessSignalRequest)(nil),  // 21: sm.agent.v1.ProcessSignalRequest
-	(*ProcessSignalResult)(nil),   // 22: sm.agent.v1.ProcessSignalResult
-	(*LogQueryRequest)(nil),       // 23: sm.agent.v1.LogQueryRequest
-	(*LogQueryResult)(nil),        // 24: sm.agent.v1.LogQueryResult
-	(*LogEntry)(nil),              // 25: sm.agent.v1.LogEntry
-	(*AuthLogRequest)(nil),        // 26: sm.agent.v1.AuthLogRequest
-	(*AuthLogResult)(nil),         // 27: sm.agent.v1.AuthLogResult
-	(*AuthEvent)(nil),             // 28: sm.agent.v1.AuthEvent
-	(*ExecuteRequest)(nil),        // 29: sm.agent.v1.ExecuteRequest
-	(*ExecuteResponse)(nil),       // 30: sm.agent.v1.ExecuteResponse
-	(*timestamppb.Timestamp)(nil), // 31: google.protobuf.Timestamp
+	(CommandStatus)(0),                    // 0: sm.agent.v1.CommandStatus
+	(ServiceOperation)(0),                 // 1: sm.agent.v1.ServiceOperation
+	(ProcessSort)(0),                      // 2: sm.agent.v1.ProcessSort
+	(Signal)(0),                           // 3: sm.agent.v1.Signal
+	(AuthEventKind)(0),                    // 4: sm.agent.v1.AuthEventKind
+	(DockerContainerOperation)(0),         // 5: sm.agent.v1.DockerContainerOperation
+	(DockerPruneTarget)(0),                // 6: sm.agent.v1.DockerPruneTarget
+	(*CommandEnvelope)(nil),               // 7: sm.agent.v1.CommandEnvelope
+	(*Command)(nil),                       // 8: sm.agent.v1.Command
+	(*ActionRequest)(nil),                 // 9: sm.agent.v1.ActionRequest
+	(*CommandResult)(nil),                 // 10: sm.agent.v1.CommandResult
+	(*ActionResult)(nil),                  // 11: sm.agent.v1.ActionResult
+	(*SystemInfoRequest)(nil),             // 12: sm.agent.v1.SystemInfoRequest
+	(*SystemInfoResult)(nil),              // 13: sm.agent.v1.SystemInfoResult
+	(*Filesystem)(nil),                    // 14: sm.agent.v1.Filesystem
+	(*ServiceListRequest)(nil),            // 15: sm.agent.v1.ServiceListRequest
+	(*ServiceListResult)(nil),             // 16: sm.agent.v1.ServiceListResult
+	(*ServiceUnit)(nil),                   // 17: sm.agent.v1.ServiceUnit
+	(*ServiceControlRequest)(nil),         // 18: sm.agent.v1.ServiceControlRequest
+	(*ServiceControlResult)(nil),          // 19: sm.agent.v1.ServiceControlResult
+	(*ProcessListRequest)(nil),            // 20: sm.agent.v1.ProcessListRequest
+	(*ProcessListResult)(nil),             // 21: sm.agent.v1.ProcessListResult
+	(*Process)(nil),                       // 22: sm.agent.v1.Process
+	(*ProcessSignalRequest)(nil),          // 23: sm.agent.v1.ProcessSignalRequest
+	(*ProcessSignalResult)(nil),           // 24: sm.agent.v1.ProcessSignalResult
+	(*LogQueryRequest)(nil),               // 25: sm.agent.v1.LogQueryRequest
+	(*LogQueryResult)(nil),                // 26: sm.agent.v1.LogQueryResult
+	(*LogEntry)(nil),                      // 27: sm.agent.v1.LogEntry
+	(*AuthLogRequest)(nil),                // 28: sm.agent.v1.AuthLogRequest
+	(*AuthLogResult)(nil),                 // 29: sm.agent.v1.AuthLogResult
+	(*AuthEvent)(nil),                     // 30: sm.agent.v1.AuthEvent
+	(*DockerContainerListRequest)(nil),    // 31: sm.agent.v1.DockerContainerListRequest
+	(*DockerContainerListResult)(nil),     // 32: sm.agent.v1.DockerContainerListResult
+	(*DockerContainer)(nil),               // 33: sm.agent.v1.DockerContainer
+	(*DockerPort)(nil),                    // 34: sm.agent.v1.DockerPort
+	(*DockerContainerControlRequest)(nil), // 35: sm.agent.v1.DockerContainerControlRequest
+	(*DockerContainerControlResult)(nil),  // 36: sm.agent.v1.DockerContainerControlResult
+	(*DockerLogsRequest)(nil),             // 37: sm.agent.v1.DockerLogsRequest
+	(*DockerLogsResult)(nil),              // 38: sm.agent.v1.DockerLogsResult
+	(*DockerLogLine)(nil),                 // 39: sm.agent.v1.DockerLogLine
+	(*DockerStatsRequest)(nil),            // 40: sm.agent.v1.DockerStatsRequest
+	(*DockerStatsResult)(nil),             // 41: sm.agent.v1.DockerStatsResult
+	(*DockerContainerStats)(nil),          // 42: sm.agent.v1.DockerContainerStats
+	(*DockerImageListRequest)(nil),        // 43: sm.agent.v1.DockerImageListRequest
+	(*DockerImageListResult)(nil),         // 44: sm.agent.v1.DockerImageListResult
+	(*DockerImage)(nil),                   // 45: sm.agent.v1.DockerImage
+	(*DockerVolumeListRequest)(nil),       // 46: sm.agent.v1.DockerVolumeListRequest
+	(*DockerVolumeListResult)(nil),        // 47: sm.agent.v1.DockerVolumeListResult
+	(*DockerVolume)(nil),                  // 48: sm.agent.v1.DockerVolume
+	(*DockerNetworkListRequest)(nil),      // 49: sm.agent.v1.DockerNetworkListRequest
+	(*DockerNetworkListResult)(nil),       // 50: sm.agent.v1.DockerNetworkListResult
+	(*DockerNetwork)(nil),                 // 51: sm.agent.v1.DockerNetwork
+	(*DockerPruneRequest)(nil),            // 52: sm.agent.v1.DockerPruneRequest
+	(*DockerPruneResult)(nil),             // 53: sm.agent.v1.DockerPruneResult
+	(*ExecuteRequest)(nil),                // 54: sm.agent.v1.ExecuteRequest
+	(*ExecuteResponse)(nil),               // 55: sm.agent.v1.ExecuteResponse
+	(*timestamppb.Timestamp)(nil),         // 56: google.protobuf.Timestamp
 }
 var file_sm_agent_v1_actions_proto_depIdxs = []int32{
-	31, // 0: sm.agent.v1.CommandEnvelope.issued_at:type_name -> google.protobuf.Timestamp
-	31, // 1: sm.agent.v1.CommandEnvelope.expires_at:type_name -> google.protobuf.Timestamp
-	7,  // 2: sm.agent.v1.CommandEnvelope.request:type_name -> sm.agent.v1.ActionRequest
-	10, // 3: sm.agent.v1.ActionRequest.system_info:type_name -> sm.agent.v1.SystemInfoRequest
-	13, // 4: sm.agent.v1.ActionRequest.service_list:type_name -> sm.agent.v1.ServiceListRequest
-	16, // 5: sm.agent.v1.ActionRequest.service_control:type_name -> sm.agent.v1.ServiceControlRequest
-	18, // 6: sm.agent.v1.ActionRequest.process_list:type_name -> sm.agent.v1.ProcessListRequest
-	21, // 7: sm.agent.v1.ActionRequest.process_signal:type_name -> sm.agent.v1.ProcessSignalRequest
-	23, // 8: sm.agent.v1.ActionRequest.log_query:type_name -> sm.agent.v1.LogQueryRequest
-	26, // 9: sm.agent.v1.ActionRequest.auth_log:type_name -> sm.agent.v1.AuthLogRequest
-	0,  // 10: sm.agent.v1.CommandResult.status:type_name -> sm.agent.v1.CommandStatus
-	9,  // 11: sm.agent.v1.CommandResult.result:type_name -> sm.agent.v1.ActionResult
-	11, // 12: sm.agent.v1.ActionResult.system_info:type_name -> sm.agent.v1.SystemInfoResult
-	14, // 13: sm.agent.v1.ActionResult.service_list:type_name -> sm.agent.v1.ServiceListResult
-	17, // 14: sm.agent.v1.ActionResult.service_control:type_name -> sm.agent.v1.ServiceControlResult
-	19, // 15: sm.agent.v1.ActionResult.process_list:type_name -> sm.agent.v1.ProcessListResult
-	22, // 16: sm.agent.v1.ActionResult.process_signal:type_name -> sm.agent.v1.ProcessSignalResult
-	24, // 17: sm.agent.v1.ActionResult.log_query:type_name -> sm.agent.v1.LogQueryResult
-	27, // 18: sm.agent.v1.ActionResult.auth_log:type_name -> sm.agent.v1.AuthLogResult
-	12, // 19: sm.agent.v1.SystemInfoResult.filesystems:type_name -> sm.agent.v1.Filesystem
-	15, // 20: sm.agent.v1.ServiceListResult.units:type_name -> sm.agent.v1.ServiceUnit
-	1,  // 21: sm.agent.v1.ServiceControlRequest.operation:type_name -> sm.agent.v1.ServiceOperation
-	15, // 22: sm.agent.v1.ServiceControlResult.unit:type_name -> sm.agent.v1.ServiceUnit
-	2,  // 23: sm.agent.v1.ProcessListRequest.sort:type_name -> sm.agent.v1.ProcessSort
-	20, // 24: sm.agent.v1.ProcessListResult.processes:type_name -> sm.agent.v1.Process
-	3,  // 25: sm.agent.v1.ProcessSignalRequest.signal:type_name -> sm.agent.v1.Signal
-	25, // 26: sm.agent.v1.LogQueryResult.entries:type_name -> sm.agent.v1.LogEntry
-	31, // 27: sm.agent.v1.LogEntry.time:type_name -> google.protobuf.Timestamp
-	28, // 28: sm.agent.v1.AuthLogResult.events:type_name -> sm.agent.v1.AuthEvent
-	31, // 29: sm.agent.v1.AuthEvent.time:type_name -> google.protobuf.Timestamp
-	4,  // 30: sm.agent.v1.AuthEvent.kind:type_name -> sm.agent.v1.AuthEventKind
-	6,  // 31: sm.agent.v1.ExecuteRequest.command:type_name -> sm.agent.v1.Command
-	8,  // 32: sm.agent.v1.ExecuteResponse.result:type_name -> sm.agent.v1.CommandResult
-	29, // 33: sm.agent.v1.PrivilegedService.Execute:input_type -> sm.agent.v1.ExecuteRequest
-	30, // 34: sm.agent.v1.PrivilegedService.Execute:output_type -> sm.agent.v1.ExecuteResponse
-	34, // [34:35] is the sub-list for method output_type
-	33, // [33:34] is the sub-list for method input_type
-	33, // [33:33] is the sub-list for extension type_name
-	33, // [33:33] is the sub-list for extension extendee
-	0,  // [0:33] is the sub-list for field type_name
+	56, // 0: sm.agent.v1.CommandEnvelope.issued_at:type_name -> google.protobuf.Timestamp
+	56, // 1: sm.agent.v1.CommandEnvelope.expires_at:type_name -> google.protobuf.Timestamp
+	9,  // 2: sm.agent.v1.CommandEnvelope.request:type_name -> sm.agent.v1.ActionRequest
+	12, // 3: sm.agent.v1.ActionRequest.system_info:type_name -> sm.agent.v1.SystemInfoRequest
+	15, // 4: sm.agent.v1.ActionRequest.service_list:type_name -> sm.agent.v1.ServiceListRequest
+	18, // 5: sm.agent.v1.ActionRequest.service_control:type_name -> sm.agent.v1.ServiceControlRequest
+	20, // 6: sm.agent.v1.ActionRequest.process_list:type_name -> sm.agent.v1.ProcessListRequest
+	23, // 7: sm.agent.v1.ActionRequest.process_signal:type_name -> sm.agent.v1.ProcessSignalRequest
+	25, // 8: sm.agent.v1.ActionRequest.log_query:type_name -> sm.agent.v1.LogQueryRequest
+	28, // 9: sm.agent.v1.ActionRequest.auth_log:type_name -> sm.agent.v1.AuthLogRequest
+	31, // 10: sm.agent.v1.ActionRequest.docker_container_list:type_name -> sm.agent.v1.DockerContainerListRequest
+	35, // 11: sm.agent.v1.ActionRequest.docker_container_control:type_name -> sm.agent.v1.DockerContainerControlRequest
+	37, // 12: sm.agent.v1.ActionRequest.docker_logs:type_name -> sm.agent.v1.DockerLogsRequest
+	40, // 13: sm.agent.v1.ActionRequest.docker_stats:type_name -> sm.agent.v1.DockerStatsRequest
+	43, // 14: sm.agent.v1.ActionRequest.docker_image_list:type_name -> sm.agent.v1.DockerImageListRequest
+	46, // 15: sm.agent.v1.ActionRequest.docker_volume_list:type_name -> sm.agent.v1.DockerVolumeListRequest
+	49, // 16: sm.agent.v1.ActionRequest.docker_network_list:type_name -> sm.agent.v1.DockerNetworkListRequest
+	52, // 17: sm.agent.v1.ActionRequest.docker_prune:type_name -> sm.agent.v1.DockerPruneRequest
+	0,  // 18: sm.agent.v1.CommandResult.status:type_name -> sm.agent.v1.CommandStatus
+	11, // 19: sm.agent.v1.CommandResult.result:type_name -> sm.agent.v1.ActionResult
+	13, // 20: sm.agent.v1.ActionResult.system_info:type_name -> sm.agent.v1.SystemInfoResult
+	16, // 21: sm.agent.v1.ActionResult.service_list:type_name -> sm.agent.v1.ServiceListResult
+	19, // 22: sm.agent.v1.ActionResult.service_control:type_name -> sm.agent.v1.ServiceControlResult
+	21, // 23: sm.agent.v1.ActionResult.process_list:type_name -> sm.agent.v1.ProcessListResult
+	24, // 24: sm.agent.v1.ActionResult.process_signal:type_name -> sm.agent.v1.ProcessSignalResult
+	26, // 25: sm.agent.v1.ActionResult.log_query:type_name -> sm.agent.v1.LogQueryResult
+	29, // 26: sm.agent.v1.ActionResult.auth_log:type_name -> sm.agent.v1.AuthLogResult
+	32, // 27: sm.agent.v1.ActionResult.docker_container_list:type_name -> sm.agent.v1.DockerContainerListResult
+	36, // 28: sm.agent.v1.ActionResult.docker_container_control:type_name -> sm.agent.v1.DockerContainerControlResult
+	38, // 29: sm.agent.v1.ActionResult.docker_logs:type_name -> sm.agent.v1.DockerLogsResult
+	41, // 30: sm.agent.v1.ActionResult.docker_stats:type_name -> sm.agent.v1.DockerStatsResult
+	44, // 31: sm.agent.v1.ActionResult.docker_image_list:type_name -> sm.agent.v1.DockerImageListResult
+	47, // 32: sm.agent.v1.ActionResult.docker_volume_list:type_name -> sm.agent.v1.DockerVolumeListResult
+	50, // 33: sm.agent.v1.ActionResult.docker_network_list:type_name -> sm.agent.v1.DockerNetworkListResult
+	53, // 34: sm.agent.v1.ActionResult.docker_prune:type_name -> sm.agent.v1.DockerPruneResult
+	14, // 35: sm.agent.v1.SystemInfoResult.filesystems:type_name -> sm.agent.v1.Filesystem
+	17, // 36: sm.agent.v1.ServiceListResult.units:type_name -> sm.agent.v1.ServiceUnit
+	1,  // 37: sm.agent.v1.ServiceControlRequest.operation:type_name -> sm.agent.v1.ServiceOperation
+	17, // 38: sm.agent.v1.ServiceControlResult.unit:type_name -> sm.agent.v1.ServiceUnit
+	2,  // 39: sm.agent.v1.ProcessListRequest.sort:type_name -> sm.agent.v1.ProcessSort
+	22, // 40: sm.agent.v1.ProcessListResult.processes:type_name -> sm.agent.v1.Process
+	3,  // 41: sm.agent.v1.ProcessSignalRequest.signal:type_name -> sm.agent.v1.Signal
+	27, // 42: sm.agent.v1.LogQueryResult.entries:type_name -> sm.agent.v1.LogEntry
+	56, // 43: sm.agent.v1.LogEntry.time:type_name -> google.protobuf.Timestamp
+	30, // 44: sm.agent.v1.AuthLogResult.events:type_name -> sm.agent.v1.AuthEvent
+	56, // 45: sm.agent.v1.AuthEvent.time:type_name -> google.protobuf.Timestamp
+	4,  // 46: sm.agent.v1.AuthEvent.kind:type_name -> sm.agent.v1.AuthEventKind
+	33, // 47: sm.agent.v1.DockerContainerListResult.containers:type_name -> sm.agent.v1.DockerContainer
+	56, // 48: sm.agent.v1.DockerContainer.created:type_name -> google.protobuf.Timestamp
+	34, // 49: sm.agent.v1.DockerContainer.ports:type_name -> sm.agent.v1.DockerPort
+	5,  // 50: sm.agent.v1.DockerContainerControlRequest.operation:type_name -> sm.agent.v1.DockerContainerOperation
+	33, // 51: sm.agent.v1.DockerContainerControlResult.container:type_name -> sm.agent.v1.DockerContainer
+	39, // 52: sm.agent.v1.DockerLogsResult.lines:type_name -> sm.agent.v1.DockerLogLine
+	56, // 53: sm.agent.v1.DockerLogLine.time:type_name -> google.protobuf.Timestamp
+	42, // 54: sm.agent.v1.DockerStatsResult.stats:type_name -> sm.agent.v1.DockerContainerStats
+	45, // 55: sm.agent.v1.DockerImageListResult.images:type_name -> sm.agent.v1.DockerImage
+	56, // 56: sm.agent.v1.DockerImage.created:type_name -> google.protobuf.Timestamp
+	48, // 57: sm.agent.v1.DockerVolumeListResult.volumes:type_name -> sm.agent.v1.DockerVolume
+	51, // 58: sm.agent.v1.DockerNetworkListResult.networks:type_name -> sm.agent.v1.DockerNetwork
+	6,  // 59: sm.agent.v1.DockerPruneRequest.target:type_name -> sm.agent.v1.DockerPruneTarget
+	8,  // 60: sm.agent.v1.ExecuteRequest.command:type_name -> sm.agent.v1.Command
+	10, // 61: sm.agent.v1.ExecuteResponse.result:type_name -> sm.agent.v1.CommandResult
+	54, // 62: sm.agent.v1.PrivilegedService.Execute:input_type -> sm.agent.v1.ExecuteRequest
+	55, // 63: sm.agent.v1.PrivilegedService.Execute:output_type -> sm.agent.v1.ExecuteResponse
+	63, // [63:64] is the sub-list for method output_type
+	62, // [62:63] is the sub-list for method input_type
+	62, // [62:62] is the sub-list for extension type_name
+	62, // [62:62] is the sub-list for extension extendee
+	0,  // [0:62] is the sub-list for field type_name
 }
 
 func init() { file_sm_agent_v1_actions_proto_init() }
@@ -2508,6 +4453,14 @@ func file_sm_agent_v1_actions_proto_init() {
 		(*ActionRequest_ProcessSignal)(nil),
 		(*ActionRequest_LogQuery)(nil),
 		(*ActionRequest_AuthLog)(nil),
+		(*ActionRequest_DockerContainerList)(nil),
+		(*ActionRequest_DockerContainerControl)(nil),
+		(*ActionRequest_DockerLogs)(nil),
+		(*ActionRequest_DockerStats)(nil),
+		(*ActionRequest_DockerImageList)(nil),
+		(*ActionRequest_DockerVolumeList)(nil),
+		(*ActionRequest_DockerNetworkList)(nil),
+		(*ActionRequest_DockerPrune)(nil),
 	}
 	file_sm_agent_v1_actions_proto_msgTypes[4].OneofWrappers = []any{
 		(*ActionResult_SystemInfo)(nil),
@@ -2517,6 +4470,14 @@ func file_sm_agent_v1_actions_proto_init() {
 		(*ActionResult_ProcessSignal)(nil),
 		(*ActionResult_LogQuery)(nil),
 		(*ActionResult_AuthLog)(nil),
+		(*ActionResult_DockerContainerList)(nil),
+		(*ActionResult_DockerContainerControl)(nil),
+		(*ActionResult_DockerLogs)(nil),
+		(*ActionResult_DockerStats)(nil),
+		(*ActionResult_DockerImageList)(nil),
+		(*ActionResult_DockerVolumeList)(nil),
+		(*ActionResult_DockerNetworkList)(nil),
+		(*ActionResult_DockerPrune)(nil),
 	}
 	file_sm_agent_v1_actions_proto_msgTypes[18].OneofWrappers = []any{}
 	type x struct{}
@@ -2524,8 +4485,8 @@ func file_sm_agent_v1_actions_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_sm_agent_v1_actions_proto_rawDesc), len(file_sm_agent_v1_actions_proto_rawDesc)),
-			NumEnums:      5,
-			NumMessages:   26,
+			NumEnums:      7,
+			NumMessages:   49,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

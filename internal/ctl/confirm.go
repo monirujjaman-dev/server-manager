@@ -86,6 +86,28 @@ func ActionLabel(req *agentv1.ActionRequest) string {
 	case *agentv1.ActionRequest_ProcessSignal:
 		sig := strings.TrimPrefix(a.ProcessSignal.GetSignal().String(), "SIGNAL_")
 		return fmt.Sprintf("processes.signal SIG%s to PID %d", sig, a.ProcessSignal.GetPid())
+	case *agentv1.ActionRequest_DockerContainerControl:
+		c := a.DockerContainerControl
+		label := info.Name + " " + c.GetContainer()
+		switch {
+		case c.GetForce() && c.GetRemoveVolumes():
+			label += " (forced, with its volumes)"
+		case c.GetForce():
+			label += " (forced)"
+		case c.GetRemoveVolumes():
+			label += " (with its volumes)"
+		}
+		return label
+	case *agentv1.ActionRequest_DockerPrune:
+		p := a.DockerPrune
+		label := info.Name + " " + strings.ToLower(strings.ReplaceAll(strings.TrimPrefix(p.GetTarget().String(), "DOCKER_PRUNE_TARGET_"), "_", "-"))
+		switch {
+		case p.GetAllImages():
+			label += " (all unused images)"
+		case p.GetAllVolumes():
+			label += " (including named volumes)"
+		}
+		return label
 	}
 	return info.Name
 }
