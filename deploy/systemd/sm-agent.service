@@ -5,6 +5,8 @@ Description=Server Manager agent
 Documentation=https://github.com/monirujjaman-dev/server-manager
 Wants=network-online.target sm-agent-privd.service
 After=network-online.target sm-agent-privd.service
+# Start only after `sm-agent enroll` wrote the configuration.
+ConditionPathExists=/etc/sm-agent/agent.yaml
 
 [Service]
 Type=simple
@@ -12,7 +14,7 @@ User=smagent
 Group=smagent
 # Read the system journal for logs.query and logs.auth.
 SupplementaryGroups=systemd-journal
-ExecStart=/usr/local/bin/sm-agent run --config /etc/sm-agent/agent.yaml
+ExecStart=/usr/bin/sm-agent run --config /etc/sm-agent/agent.yaml
 Restart=always
 RestartSec=5
 

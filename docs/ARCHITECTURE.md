@@ -463,15 +463,11 @@ server-manager/
 as systemd services. Daily `pg_dump` + VictoriaMetrics snapshot to off-site storage.
 Sizing guide: 2 vCPU / 4 GB RAM handles roughly 200 servers at 15 s metric intervals.
 
-**Agent install:**
-
-```bash
-curl -fsSL https://<control-plane>/install.sh | sudo bash -s -- --token <TOKEN> --fingerprint <SHA256>
-```
-
-The script verifies the binary signature, creates the `smagent` user, installs the
-two systemd units and enrolls. Packages (`.deb`, `.rpm`) are available for people who
-prefer their package manager.
+**Agent install:** `smctl enroll create-token` prints a one-line command for
+`install-agent.sh`, which downloads the `.deb`/`.rpm` from the release, checks its
+SHA-256 against the release's `checksums.txt` (and the cosign signature when `cosign` is
+installed), installs it, enrolls with the token and starts the two units. The packages
+create the `smagent` user and `/etc/sm-agent`. Details in [INSTALL.md](INSTALL.md).
 
 **Upgrades:** the control plane offers new agent versions; agents download, verify
 the cosign signature and restart through systemd. Staged roll-out by server group.

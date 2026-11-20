@@ -1,0 +1,21 @@
+# Server Manager control plane. Copy to /etc/sm-server/sm-server.yaml, edit, then:
+#   sudo -u sm-server sm-server migrate up
+#   sudo -u sm-server sm-server pki init --dns cp.example.internal
+#   sudo systemctl enable --now sm-server
+# Every key can be overridden with SM_<KEY>, e.g. SM_DATABASE_URL.
+
+agent_listen: ":8443"
+api_listen: ":8444"
+pki_dir: /var/lib/sm-server/pki
+database_url: postgres://sm-server:CHANGE-ME@127.0.0.1:5432/sm?sslmode=disable
+
+# How agents and operators reach this host; printed in enrollment commands.
+public_agent_url: https://cp.example.internal:8443
+public_api_url: https://cp.example.internal:8444
+
+# Optional metric history.
+# victoriametrics_url: http://127.0.0.1:8428
+
+log:
+  level: info
+  format: json

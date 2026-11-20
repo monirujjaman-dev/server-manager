@@ -130,22 +130,24 @@ SM_TEST_DATABASE_URL='postgres://sm:sm-dev-only@127.0.0.1:5434/sm?sslmode=disabl
 
 Without `SM_TEST_DATABASE_URL` those tests are skipped. CI always runs them.
 
-## Test virtual machines
-
-Modules that change the system (firewall, swap, fstab, services) are tested **only in
-VMs**, never on a developer machine. Phase 1 adds automated VM tests under `test/e2e/`;
-until then, create VMs manually:
+## Packages and system tests
 
 ```bash
-multipass launch 24.04 --name sm-ubuntu --cpus 1 --memory 1G
-multipass launch debian-12 --name sm-debian --cpus 1 --memory 1G   # or: incus launch images:debian/12 sm-debian --vm
-incus launch images:rockylinux/9 sm-rocky --vm
+make packages      # dist/: .deb/.rpm for sm-agent, sm-server, smctl (amd64, arm64),
+                   # smctl for macOS/Windows, install-agent.sh, checksums.txt
+make system-test   # needs Docker; DISTROS="ubuntu-24.04" to test one distribution
 ```
 
-Copy `bin/sm-agent` (built with `GOOS=linux GOARCH=<arch> make build`) into the VM, run
-`sm-agent keygen`, sign the CSR on the host with `sm-server pki sign-agent`, and point the
-agent at the host's agent listener (bind `agent_listen` to an address the VM can reach and
-include that address in the server certificate with `sm-server pki issue-server --ip`).
+`make system-test` (`test/system/run.sh`) starts PostgreSQL, a control plane installed
+from the `sm-server` package under systemd, and one agent container per distribution
+installed with `install-agent.sh`. It then uses `smctl` to restart and stop a real unit,
+kill a process, query the journal, find sudo records, check unit hardening
+(`systemd-analyze security`), revoke the server and remove the package. Set `KEEP=1` to
+leave the containers running for inspection. CI runs it for Ubuntu 24.04 and Rocky 9.
+
+Releases: push a tag `vX.Y.Z`; `.github/workflows/release.yml` builds `dist/`, signs
+`checksums.txt` with cosign (keyless, the workflow's identity) and publishes a GitHub
+release. See [INSTALL.md](INSTALL.md) for installing from a release.
 
 ## Conventions
 

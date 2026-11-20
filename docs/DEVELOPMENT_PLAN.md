@@ -84,7 +84,14 @@ until token enrollment (task 1.1) exists.
 | 1.9 | Authentication: local accounts (Argon2id) + TOTP, CLI device-code login, sessions | Login without MFA is impossible | ✅ Argon2id + mandatory TOTP, sessions, lockout, step-up; `smctl login` asks for password and code directly (device-code flow and OS keyring later) |
 | 1.10 | RBAC: built-in roles per server group | `viewer` cannot restart services (test) | ✅ viewer/operator/admin/owner per group or global; tested end to end |
 | 1.11 | Audit log with hash chain + `smctl audit` search + chain verify job | Tampering with a row is detected | 🟡 hash chain, tamper detection, `smctl audit list`, `sm-server audit verify`; scheduled verify job pending |
-| 1.12 | systemd units with sandboxing, install script, `.deb`/`.rpm` via GoReleaser | Fresh Ubuntu 24.04 and Rocky 9 VMs enroll with one command | 🟡 hardened units in `deploy/systemd/` (syntax-checked, not yet run on a VM) |
+| 1.12 | systemd units with sandboxing, install script, `.deb`/`.rpm` via GoReleaser | Fresh Ubuntu 24.04 and Rocky 9 VMs enroll with one command | ✅ `.deb`/`.rpm` via nFPM, `install-agent.sh`, signed release workflow; system tests install and drive the packages in systemd containers on Ubuntu 24.04 and Rocky 9 (containers instead of VMs, see below) |
+
+Notes on 1.12: packages are built with nFPM directly (`make packages`) rather than
+GoReleaser, and the end-to-end tests run in systemd containers (`make system-test`)
+because they are reliable on CI runners and on developer machines with Docker. They
+exercise real systemd, D-Bus, journald, the unit sandboxing and the maintainer scripts.
+Full VMs (Incus/Multipass) remain useful for kernel-level checks such as the firewall
+module in Phase 3.
 
 Also done in the first Phase 1 slice (needed for 1.1 to be usable in production):
 database-backed revocation (every issued certificate is recorded; unknown serials are

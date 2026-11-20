@@ -21,6 +21,17 @@ help: ## Show this help
 build: ## Build sm-server, sm-agent and smctl into ./bin
 	CGO_ENABLED=0 $(GO) build -trimpath -ldflags '$(LDFLAGS)' -o $(BIN)/ ./cmd/...
 
+PKG_VERSION ?= $(shell ./deploy/packaging/version.sh)
+DIST        ?= dist
+
+.PHONY: packages
+packages: ## Build .deb/.rpm packages and smctl binaries for all platforms into ./dist
+	./deploy/packaging/build.sh '$(DIST)' '$(PKG_VERSION)' '$(LDFLAGS)'
+
+.PHONY: system-test
+system-test: packages ## Install the packages in systemd containers and test them (needs Docker)
+	DIST='$(DIST)' PKG_VERSION='$(PKG_VERSION)' ./test/system/run.sh
+
 .PHONY: test
 test: ## Run tests (set SM_TEST_DATABASE_URL for database-backed tests)
 	$(GO) test -race -count=1 ./...

@@ -329,8 +329,17 @@ func fleetCommands(a *app) []*cobra.Command {
 			if api == "" {
 				api = "https://<control-plane-host>:8444"
 			}
-			cmd.Printf("Enrollment token for %q (single use, expires %s):\n\n  %s\n\nRun on the new server as root:\n\n  sm-agent enroll --server %s \\\n    --pin %s \\\n    --token %s --owner smagent\n",
-				name, m.GetExpiresAt().AsTime().Local().Format(time.RFC1123), m.GetToken(), api, m.GetPin(), m.GetToken())
+			ver := "<version>"
+			if v := version.Get().Version; len(v) > 1 && v[0] == 'v' && v[1] >= '0' && v[1] <= '9' && !strings.Contains(v, "-") {
+				ver = v[1:]
+			}
+			cmd.Printf("Enrollment token for %q (single use, expires %s):\n\n  %s\n\n", name, m.GetExpiresAt().AsTime().Local().Format(time.RFC1123), m.GetToken())
+			cmd.Printf("Install and enroll on the new server (as root):\n\n"+
+				"  curl -fsSLO https://github.com/monirujjaman-dev/server-manager/releases/download/v%s/install-agent.sh\n"+
+				"  SM_ENROLL_TOKEN=%s sh install-agent.sh --version %s \\\n    --server %s --pin %s\n\n",
+				ver, m.GetToken(), ver, api, m.GetPin())
+			cmd.Printf("Or, with sm-agent already installed:\n\n  SM_AGENT_ENROLL_TOKEN=%s sm-agent enroll --owner smagent \\\n    --server %s --pin %s\n",
+				m.GetToken(), api, m.GetPin())
 			return nil
 		},
 	}
