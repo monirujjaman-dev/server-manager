@@ -36,14 +36,16 @@ See the [development guide](docs/DEVELOPMENT.md) for the database, tests and VMs
 - [Architecture](docs/ARCHITECTURE.md)
 - [Development plan](docs/DEVELOPMENT_PLAN.md)
 - [Architecture decision records](docs/adr/README.md)
+- [Installation](docs/INSTALL.md)
 - [Development guide](docs/DEVELOPMENT.md)
 
 ## Status
 
 - **Phase 0 (foundations):** done.
-- **Phase 1 (MVP):** nearly done. Done: token enrollment, certificate renewal,
-  database-backed revocation, hash-chained audit log, signed command dispatch, the
-  privileged helper, system/services/processes actions, metrics with a fleet dashboard,
-  journal/SSH/sudo logs, MFA login with sessions, RBAC per server group, and `smctl`.
-  Remaining: packaging, install script and VM tests. See the
+- **Phase 1 (MVP):** done — token enrollment, certificate renewal, database-backed
+  revocation, hash-chained audit log, signed command dispatch, the privileged helper,
+  system/services/processes actions, metrics and a fleet dashboard, journal/SSH/sudo
+  logs, MFA login, RBAC per server group, `smctl`, and `.deb`/`.rpm` packages with an
+  install script, tested in systemd containers on Ubuntu 24.04 and Rocky 9.
+- **Next:** Phase 2 (Docker, disk cleanup, swap, timezone, updates, TUI). See the
   [development plan](docs/DEVELOPMENT_PLAN.md).

@@ -8,7 +8,7 @@ Before=sm-agent.service
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/sm-agent privd
+ExecStart=/usr/bin/sm-agent privd
 Restart=always
 RestartSec=5
 Environment=SM_PRIVD_AGENT_USER=smagent

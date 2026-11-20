@@ -4,12 +4,14 @@ Description=Server Manager control plane
 Documentation=https://github.com/monirujjaman-dev/server-manager
 Wants=network-online.target
 After=network-online.target postgresql.service
+# Copy /etc/sm-server/sm-server.yaml.example to sm-server.yaml and edit it first.
+ConditionPathExists=/etc/sm-server/sm-server.yaml
 
 [Service]
 Type=simple
 User=sm-server
 Group=sm-server
-ExecStart=/usr/local/bin/sm-server serve --config /etc/sm-server/sm-server.yaml
+ExecStart=/usr/bin/sm-server serve --config /etc/sm-server/sm-server.yaml
 Restart=always
 RestartSec=5
 

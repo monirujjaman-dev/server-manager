@@ -1,0 +1,33 @@
+# nfpm configuration for the agent package (built by `make packages`).
+name: sm-agent
+arch: ${ARCH}
+platform: linux
+version: ${VERSION}
+section: admin
+priority: optional
+maintainer: Server Manager maintainers
+description: |
+  Server Manager agent and privileged helper. Connects out to the control plane over
+  mutual TLS; enroll with `sm-agent enroll` (or the install script) to start it.
+homepage: https://github.com/monirujjaman-dev/server-manager
+license: Proprietary
+contents:
+  - src: ${BIN_DIR}/sm-agent
+    dst: /usr/bin/sm-agent
+    file_info: { mode: 0755 }
+  - src: deploy/systemd/sm-agent.service
+    dst: /usr/lib/systemd/system/sm-agent.service
+    file_info: { mode: 0644 }
+  - src: deploy/systemd/sm-agent-privd.service
+    dst: /usr/lib/systemd/system/sm-agent-privd.service
+    file_info: { mode: 0644 }
+scripts:
+  preinstall: deploy/packaging/scripts/agent-preinstall.sh
+  postinstall: deploy/packaging/scripts/agent-postinstall.sh
+  preremove: deploy/packaging/scripts/agent-preremove.sh
+  postremove: deploy/packaging/scripts/postremove.sh
+overrides:
+  deb:
+    depends: [systemd, adduser | passwd]
+  rpm:
+    depends: [systemd, shadow-utils]

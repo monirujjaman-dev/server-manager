@@ -1,0 +1,15 @@
+# nfpm configuration for the operator console (built by `make packages`).
+name: smctl
+arch: ${ARCH}
+platform: linux
+version: ${VERSION}
+section: admin
+priority: optional
+maintainer: Server Manager maintainers
+description: Server Manager operator console.
+homepage: https://github.com/monirujjaman-dev/server-manager
+license: Proprietary
+contents:
+  - src: ${BIN_DIR}/smctl
+    dst: /usr/bin/smctl
+    file_info: { mode: 0755 }
