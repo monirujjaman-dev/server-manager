@@ -38,10 +38,12 @@ type Config struct {
 	Socket string `yaml:"socket" env:"SOCKET"`
 	// AgentUser is the only user allowed to connect (the unprivileged agent).
 	AgentUser string `yaml:"agent_user" env:"AGENT_USER"`
-	// CertFile is the agent certificate; the helper takes the server identity from it.
-	CertFile string `yaml:"cert_file" env:"CERT_FILE"`
-	// CommandKeyFile is the control plane's command verification key.
+	// CommandKeyFile is the control plane's command verification key and ServerIDFile
+	// this server's identity. Both must be root-owned and not writable by anyone else,
+	// as must every directory above them (see CheckTrusted); they are never read from
+	// the agent's own directory.
 	CommandKeyFile string `yaml:"command_key_file" env:"COMMAND_KEY_FILE"`
+	ServerIDFile   string `yaml:"server_id_file" env:"SERVER_ID_FILE"`
 	// DockerSocket is the Docker daemon's socket for docker.* actions.
 	DockerSocket string         `yaml:"docker_socket" env:"DOCKER_SOCKET"`
 	Log          logging.Config `yaml:"log"`
@@ -52,8 +54,8 @@ func DefaultConfig() Config {
 	return Config{
 		Socket:         "/run/sm-agent/privd.sock",
 		AgentUser:      "smagent",
-		CertFile:       "/etc/sm-agent/agent.crt",
-		CommandKeyFile: "/etc/sm-agent/command.pub",
+		CommandKeyFile: DefaultTrustDir + "/" + commandKeyName,
+		ServerIDFile:   DefaultTrustDir + "/" + serverIDName,
 		DockerSocket:   modules.DefaultDockerSocket,
 		Log:            logging.Config{Level: "info", Format: "json"},
 	}
@@ -70,6 +72,7 @@ type Server struct {
 	docker     *modules.Docker
 	kill       func(int, syscall.Signal) error
 	allowedUID uint32
+	trustedUID *uint32 // besides root; tests only
 
 	mu       sync.Mutex
 	verifier *command.Verifier
@@ -83,6 +86,9 @@ type Options struct {
 	Kill    func(int, syscall.Signal) error
 	// AllowedUID overrides the lookup of Config.AgentUser.
 	AllowedUID *uint32
+	// TrustedUID additionally accepts trust files owned by this UID. Tests only: in
+	// production the files must be owned by root.
+	TrustedUID *uint32
 }
 
 // New prepares the helper.
@@ -101,6 +107,7 @@ func New(cfg Config, log *slog.Logger, opts Options) (*Server, error) {
 	if opts.Docker != nil {
 		s.docker = opts.Docker
 	}
+	s.trustedUID = opts.TrustedUID
 	if opts.AllowedUID != nil {
 		s.allowedUID = *opts.AllowedUID
 	} else {
@@ -120,23 +127,30 @@ func New(cfg Config, log *slog.Logger, opts Options) (*Server, error) {
 	return s, nil
 }
 
-// verifierFor loads the identity and key lazily: on a fresh install the agent writes the
-// command key after its first connection, which may be after the helper started.
+// getVerifier loads the identity and key lazily, so the helper can start before the
+// server is enrolled. Both files are checked to be root-controlled before they are read;
+// a failed load is retried on the next command.
 func (s *Server) getVerifier() (*command.Verifier, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.verifier != nil {
 		return s.verifier, nil
 	}
-	certs, err := pki.ReadCertFile(s.cfg.CertFile)
+	// Each file is checked and then read through its resolved path, so nothing can be
+	// swapped in between (every directory on that path is root-controlled).
+	idData, err := readTrusted(s.cfg.ServerIDFile, s.trustedUID)
 	if err != nil {
-		return nil, fmt.Errorf("agent certificate: %w", err)
+		return nil, fmt.Errorf("trust file: %w", err)
 	}
-	id, err := pki.AgentID(certs[0])
+	id, err := ParseServerID(idData, s.cfg.ServerIDFile)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("server identity: %w", err)
 	}
-	pub, err := pki.ReadCommandPublicKey(s.cfg.CommandKeyFile)
+	keyData, err := readTrusted(s.cfg.CommandKeyFile, s.trustedUID)
+	if err != nil {
+		return nil, fmt.Errorf("trust file: %w", err)
+	}
+	pub, err := pki.ParseCommandPublicKey(keyData, s.cfg.CommandKeyFile)
 	if err != nil {
 		return nil, fmt.Errorf("command key: %w", err)
 	}

@@ -148,6 +148,17 @@ agent without touching the socket. Not covered yet: a system test with a real Do
 daemon (the systemd test containers do not run Docker); the Engine API handling is
 tested against a fake daemon.
 
+Security fix after 2.1: `sm-privd` used to load the command key and the server identity
+from `/etc/sm-agent`, which belongs to the agent, so a compromised agent could have
+replaced the key and signed its own privileged commands. The helper's trust anchors now
+live in root-owned `/etc/sm-agent-trust` (checked for ownership and permissions up to
+`/`), the agent never writes the key (no more trust on first use from the stream),
+`CAP_DAC_READ_SEARCH` was dropped from the helper, and upgrades migrate with
+`sm-agent migrate-trust` at most once per host (it reads the agent's files without
+following symlinks and never replaces an existing trust key). The trust files are read
+through the path that was checked, must be small regular files, and are written through
+exclusively created temporary files into a directory the writer controls.
+
 Planned order for the rest of the phase: disk/swap/time
 (2.2–2.4), updates (2.5), control-plane deployment and workstation onboarding
 (2.9–2.12), then the TUI (2.7) on top of all of them.

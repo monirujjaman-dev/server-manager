@@ -116,12 +116,16 @@ sm-server audit list|verify
 Set `victoriametrics_url: http://127.0.0.1:8428` (the dev compose service) to keep
 metric history; query it with PromQL, e.g. `sm_cpu_percent{server_id="…"}`.
 
-Privileged actions (service control, signals) need the helper. On a real server it runs
-from `deploy/systemd/sm-agent-privd.service`; locally, run it as root next to the agent
-and point both at the same socket:
+Privileged actions (service control, signals, Docker) need the helper. On a real server
+it runs from `deploy/systemd/sm-agent-privd.service`; locally, run it as root next to the
+agent and point both at the same socket. The helper only trusts root-owned files, so
+copy the trust files `make dev-enroll` wrote to `.dev/agent-trust` into a root-owned
+directory first:
 
 ```bash
-sudo bin/sm-agent privd --privd-config privd.yaml   # socket, agent_user, cert_file, command_key_file, docker_socket
+sudo install -d -m 0755 /etc/sm-agent-trust
+sudo install -m 0644 .dev/agent-trust/command.pub .dev/agent-trust/server-id /etc/sm-agent-trust/
+sudo bin/sm-agent privd --privd-config privd.yaml   # socket, agent_user, command_key_file, server_id_file, docker_socket
 ```
 
 `agent_user` must not be root; the helper refuses connections from any other UID.

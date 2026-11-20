@@ -54,6 +54,12 @@ func ReadCommandPublicKey(path string) (ed25519.PublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
+	return ParseCommandPublicKey(data, path)
+}
+
+// ParseCommandPublicKey decodes a key written by WriteCommandPublicKey; name is used in
+// errors.
+func ParseCommandPublicKey(data []byte, path string) (ed25519.PublicKey, error) {
 	block, _ := pem.Decode(data)
 	if block == nil || block.Type != "PUBLIC KEY" {
 		return nil, fmt.Errorf("%s: no PUBLIC KEY PEM block", path)

@@ -86,7 +86,9 @@ func rootCmd() *cobra.Command {
 
 The agent key is generated here and never leaves this server. The control plane is
 authenticated by its public-key pin; after enrollment the agent verifies it with the CA
-certificate it receives. Writes agent.key, agent.crt, ca.crt and agent.yaml to --dir.`,
+certificate it receives. Writes agent.key, agent.crt, ca.crt and agent.yaml to --dir,
+and the command key and server identity the privileged helper trusts to --trust-dir
+(owned by whoever runs this, i.e. root; never by --owner).`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if eo.Token == "" {
@@ -107,8 +109,42 @@ certificate it receives. Writes agent.key, agent.crt, ca.crt and agent.yaml to -
 	enroll.Flags().StringVar(&eo.Dir, "dir", "/etc/sm-agent", "directory for the agent's key, certificates and config")
 	enroll.Flags().StringVar(&eo.AgentURL, "agent-url", "", "override the agent gateway URL returned by the control plane")
 	enroll.Flags().StringVar(&eo.Owner, "owner", "", "user that runs the agent and owns --dir (e.g. smagent)")
+	enroll.Flags().StringVar(&eo.TrustDir, "trust-dir", privd.DefaultTrustDir, "root-owned directory for the command key and server identity the privileged helper trusts")
 	_ = enroll.MarkFlagRequired("server")
 	_ = enroll.MarkFlagRequired("pin")
+
+	var agentDir, trustDir string
+	migrate := &cobra.Command{
+		Use:   "migrate-trust",
+		Short: "Copy an older enrollment's command key into the root-owned trust directory (as root)",
+		Long: `Agents enrolled before the trust directory existed kept the control plane's command key
+in the agent's own directory, which the agent can write. This copies the key and the
+server identity into --trust-dir, owned by root, unless it already has them. The
+package's post-install script runs it on upgrade.
+
+The key is trusted as it is now; if the agent may have been compromised, re-enroll.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if err := requireLinux(); err != nil {
+				return err
+			}
+			if os.Geteuid() != 0 {
+				return errors.New("sm-agent migrate-trust must run as root")
+			}
+			done, err := agent.MigrateTrust(agentDir, trustDir)
+			if err != nil {
+				return err
+			}
+			if done {
+				cmd.Printf("trust files written to %s\n", trustDir)
+			} else {
+				cmd.Printf("%s is already set up; nothing to do\n", trustDir)
+			}
+			return nil
+		},
+	}
+	migrate.Flags().StringVar(&agentDir, "dir", "/etc/sm-agent", "the agent's directory")
+	migrate.Flags().StringVar(&trustDir, "trust-dir", privd.DefaultTrustDir, "root-owned trust directory")
 
 	privdCmd := &cobra.Command{
 		Use:   "privd",
@@ -150,7 +186,7 @@ after verifying the control plane's signature itself.`,
 	}
 	privdCmd.Flags().StringVar(&privdConfig, "privd-config", os.Getenv("SM_PRIVD_CONFIG"), "helper config file (env SM_PRIVD_CONFIG)")
 
-	root.AddCommand(enroll, privdCmd, &cobra.Command{
+	root.AddCommand(enroll, migrate, privdCmd, &cobra.Command{
 		Use:   "version",
 		Short: "Print version information",
 		Args:  cobra.NoArgs,

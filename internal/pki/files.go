@@ -138,6 +138,11 @@ func ReadCertFile(path string) ([]*x509.Certificate, error) {
 	if err != nil {
 		return nil, err
 	}
+	return ParseCerts(data, path)
+}
+
+// ParseCerts decodes all PEM certificates in data; name is used in errors.
+func ParseCerts(data []byte, path string) ([]*x509.Certificate, error) {
 	var certs []*x509.Certificate
 	for {
 		var block *pem.Block

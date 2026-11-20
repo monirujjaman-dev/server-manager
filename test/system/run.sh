@@ -137,6 +137,11 @@ for d in $distros; do
         [ \"\$(docker exec $name stat -c '%U:%G %a' /run/sm-agent/privd.sock)\" = 'root:smagent 660' ]"
     check "agent key belongs to smagent, mode 0600" sh -c "
         [ \"\$(docker exec $name stat -c '%U %a' /etc/sm-agent/agent.key)\" = 'smagent 600' ]"
+    check "trust files are root-owned, read-only for the agent" sh -c "
+        [ \"\$(docker exec $name stat -c '%U %a' /etc/sm-agent-trust /etc/sm-agent-trust/command.pub /etc/sm-agent-trust/server-id | tr '\n' ' ')\" = 'root 755 root 644 root 644 ' ]"
+    check "the agent cannot replace the command key" sh -c "
+        ! docker exec $name setpriv --reuid=smagent --regid=smagent --clear-groups sh -c ': > /etc/sm-agent-trust/command.pub' 2>/dev/null"
+    check "no command key in the agent's directory" sh -c "! docker exec $name test -e /etc/sm-agent/command.pub"
     check "server online in the dashboard" retry 60 sh -c "docker exec sm-cp smctl servers list | grep -E '^$d +' | grep -q online"
     check "metrics reported" retry 60 sh -c "docker exec sm-cp smctl dashboard | grep -E '^$d' | grep -q ' ago'"
     check "system info" sh -c "docker exec sm-cp smctl system info $d | grep -q '^host *$name'"
@@ -163,6 +168,22 @@ for d in $distros; do
     check "kill a process by PID and start time" smctl processes kill "$d" "$pid" --start "$start" --yes
     check "the process is gone" retry 10 sh -c "! docker exec $name kill -0 $pid"
     check "PID 1 is refused" sh -c "! docker exec sm-cp smctl processes kill $d 1 --yes"
+
+    # Upgrade from a version that kept the command key in /etc/sm-agent: simulate that
+    # layout, reinstall the package, and check the key is migrated exactly once.
+    case "$fmt" in
+        deb) reinstall="dpkg -i /tmp/sm-agent.deb >/dev/null" ;;
+        rpm) reinstall="rpm -U --replacepkgs --quiet /tmp/sm-agent.rpm" ;;
+    esac
+    check "upgrade migrates an old enrollment's command key" docker exec "$name" sh -c "
+        install -m 0644 -o smagent -g smagent /etc/sm-agent-trust/command.pub /etc/sm-agent/command.pub &&
+        rm -f /etc/sm-agent-trust/command.pub /etc/sm-agent-trust/server-id /etc/sm-agent-trust/.migration-done &&
+        $reinstall && test -f /etc/sm-agent-trust/server-id && [ \"\$(cat /etc/sm-agent/command.pub)\" = \"\$(cat /etc/sm-agent-trust/command.pub)\" ]"
+    check "privileged actions work after the migration" retry 30 smctl services restart "$d" sm-test
+    check "a later upgrade never migrates again" docker exec "$name" sh -c "
+        rm -f /etc/sm-agent-trust/command.pub /etc/sm-agent-trust/server-id &&
+        $reinstall && ! test -e /etc/sm-agent-trust/server-id && ! test -e /etc/sm-agent-trust/command.pub"
+    check "restore the trust files" docker exec "$name" sh -c "sm-agent migrate-trust >/dev/null && rm /etc/sm-agent/command.pub && systemctl restart sm-agent-privd"
 
     exposure="$(docker exec "$name" systemd-analyze security sm-agent.service --no-pager 2>/dev/null | tail -1 || true)"
     echo "  sm-agent.service: ${exposure:-systemd-analyze unavailable}"

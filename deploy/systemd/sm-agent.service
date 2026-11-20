@@ -15,10 +15,13 @@ Group=smagent
 # Read the system journal for logs.query and logs.auth.
 SupplementaryGroups=systemd-journal
 ExecStart=/usr/bin/sm-agent run --config /etc/sm-agent/agent.yaml
+# Verify commands with the root-owned key (also for agent.yaml files written before
+# the trust directory existed, which point at a copy in /etc/sm-agent).
+Environment=SM_AGENT_COMMAND_KEY_FILE=/etc/sm-agent-trust/command.pub
 Restart=always
 RestartSec=5
 
-# The agent rewrites its certificate on renewal and stores the command key.
+# The agent rewrites its certificate on renewal. /etc/sm-agent-trust stays read-only.
 ReadWritePaths=/etc/sm-agent
 ProtectSystem=strict
 ProtectHome=yes

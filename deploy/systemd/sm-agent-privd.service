@@ -22,8 +22,9 @@ PrivateNetwork=yes
 IPAddressDeny=any
 RestrictAddressFamilies=AF_UNIX AF_NETLINK
 # CAP_KILL: signal processes. CAP_CHOWN: give the socket to the agent's group.
-# CAP_DAC_READ_SEARCH: read the agent's certificate and command key in /etc/sm-agent.
-CapabilityBoundingSet=CAP_KILL CAP_CHOWN CAP_DAC_READ_SEARCH
+# It trusts only /etc/sm-agent-trust (root-owned, checked at load) and never reads the
+# agent's own directory, so it needs no CAP_DAC_READ_SEARCH.
+CapabilityBoundingSet=CAP_KILL CAP_CHOWN
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes

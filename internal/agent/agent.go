@@ -81,7 +81,7 @@ func DefaultConfig() Config {
 		RenewBefore:        1.0 / 3,
 		RenewCheckInterval: time.Hour,
 
-		CommandKeyFile:        "/etc/sm-agent/command.pub",
+		CommandKeyFile:        privd.DefaultTrustDir + "/command.pub",
 		PrivdSocket:           "/run/sm-agent/privd.sock",
 		MaxConcurrentCommands: 4,
 

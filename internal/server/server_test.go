@@ -106,9 +106,18 @@ func (cp *controlPlane) enrollAgentInGroup(t *testing.T, name, group string) (ag
 	if err != nil {
 		t.Fatal(err)
 	}
-	dir := filepath.Join(t.TempDir(), "agent")
+	base := t.TempDir()
+	// The privileged helper refuses trust files under group-writable directories, which
+	// a umask of 002 would give the temp directories.
+	for _, p := range []string{filepath.Dir(base), base} {
+		if err := os.Chmod(p, 0o755); err != nil { //nolint:gosec // directories, not secrets
+			t.Fatal(err)
+		}
+	}
+	dir := filepath.Join(base, "agent")
 	res, err := agent.Enroll(context.Background(), agent.EnrollOptions{
 		APIURL: "https://" + cp.apiLn.Addr().String(), Token: tok.Value, Pin: cp.pin, Dir: dir,
+		TrustDir: filepath.Join(filepath.Dir(dir), "trust"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -287,6 +296,7 @@ func TestEnrollRejectsWrongPin(t *testing.T) {
 	_, err = agent.Enroll(context.Background(), agent.EnrollOptions{
 		APIURL: "https://" + cp.apiLn.Addr().String(), Token: tok.Value,
 		Pin: "0000000000000000000000000000000000000000000000000000000000000000", Dir: t.TempDir(),
+		TrustDir: t.TempDir(),
 	})
 	if err == nil {
 		t.Fatal("enrollment succeeded with a wrong pin")
