@@ -6,6 +6,9 @@ case "$1" in
     remove|0)
         if [ -d /run/systemd/system ]; then
             systemctl disable --now sm-agent.service sm-agent-privd.service >/dev/null 2>&1 || true
+            # The managed swapfile stays in use until reboot and is kept in
+            # /var/lib/smswap; drop the boot-time enablement of the unit being removed.
+            systemctl disable var-lib-smswap-swapfile.swap >/dev/null 2>&1 || true
         fi
         ;;
 esac

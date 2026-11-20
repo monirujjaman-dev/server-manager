@@ -1,0 +1,11 @@
+# Server Manager swapfile, managed by the privileged helper (`smctl swap create|resize|remove`).
+# The helper only enables, starts and stops this unit; it does nothing while the file is absent.
+[Unit]
+Description=Server Manager swapfile
+ConditionPathExists=/var/lib/smswap/swapfile
+
+[Swap]
+What=/var/lib/smswap/swapfile
+
+[Install]
+WantedBy=swap.target

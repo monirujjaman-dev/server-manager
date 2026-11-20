@@ -152,6 +152,7 @@ type Agent struct {
 
 	host    modules.Host
 	systemd modules.Systemd
+	timedate modules.Timedate
 	journal modules.Journal
 	privd   *privd.Client
 	sem     chan struct{}
@@ -172,6 +173,9 @@ type Option func(*Agent)
 
 // WithSystemd replaces the D-Bus systemd client.
 func WithSystemd(sd modules.Systemd) Option { return func(a *Agent) { a.systemd = sd } }
+
+// WithTimedate replaces the D-Bus timedated client.
+func WithTimedate(td modules.Timedate) Option { return func(a *Agent) { a.timedate = td } }
 
 // WithHost replaces the /proc root.
 func WithHost(h modules.Host) Option { return func(a *Agent) { a.host = h } }
@@ -225,6 +229,7 @@ func New(cfg Config, log *slog.Logger, opts ...Option) (*Agent, error) {
 		renewed:   make(chan struct{}, 1),
 		host:      modules.DefaultHost(),
 		systemd:   modules.DBusSystemd{},
+		timedate:  modules.DBusTimedate{},
 		journal:   modules.Journal{Path: cfg.JournalctlPath},
 		privd:     privd.NewClient(cfg.PrivdSocket),
 		sem:       make(chan struct{}, cfg.MaxConcurrentCommands),

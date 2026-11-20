@@ -49,9 +49,9 @@ Status: ✅ done · 🟡 partial · ⏳ planned (phase).
 | F-04 | Server audit logs: SSH logins, sudo, journald; operator actions | ✅ / 🟡 | `smctl logins`, `smctl logs`, hash-chained audit log; auditd later (P3) |
 | F-05 | Server traffic: per-interface rates and totals | 🟡 | rates in metrics; top talkers, monthly totals P4 (4.6) |
 | F-06 | Banned / failed IPs (fail2ban, CrowdSec), fleet-wide bans | ⏳ P3 | 3.4 |
-| F-07 | Timezone and NTP | ⏳ P2 | 2.4 |
+| F-07 | Timezone and NTP | ✅ | `smctl time` (2.4) |
 | F-08 | Disk cleanup (journal, package caches, old kernels, Docker) with dry run | ⏳ P2 | 2.2 |
-| F-09 | Swap: create, resize, remove, swappiness | ⏳ P2 | 2.3 |
+| F-09 | Swap: create, resize, remove, swappiness | ✅ | `smctl swap` (2.3) |
 | F-10 | Firewall with automatic rollback | ⏳ P3 | 3.1–3.3 |
 | F-11 | Services: list, start/stop/restart/reload, enable/disable | ✅ | `smctl services` (1.6) |
 | F-12 | Processes: list, top, signal | ✅ | `smctl processes` (1.7) |

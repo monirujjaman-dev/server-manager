@@ -14,7 +14,10 @@ import (
 
 var errNotLinux = errors.New("only supported on Linux")
 
-type fsUsage struct{ total, avail, inodes, inodesFree uint64 }
+type fsUsage struct {
+	total, avail, inodes, inodesFree uint64
+	fsType                           int64
+}
 
 func statfs(string) (fsUsage, error) { return fsUsage{}, errNotLinux }
 

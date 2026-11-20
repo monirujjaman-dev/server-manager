@@ -430,6 +430,61 @@ func (DockerPruneTarget) EnumDescriptor() ([]byte, []int) {
 	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{6}
 }
 
+type SwapOperation int32
+
+const (
+	SwapOperation_SWAP_OPERATION_UNSPECIFIED SwapOperation = 0
+	// Create the managed swapfile (fails if it exists).
+	SwapOperation_SWAP_OPERATION_CREATE SwapOperation = 1
+	// Replace it with one of a new size (it is turned off first).
+	SwapOperation_SWAP_OPERATION_RESIZE SwapOperation = 2
+	// Turn it off and delete it.
+	SwapOperation_SWAP_OPERATION_REMOVE SwapOperation = 3
+)
+
+// Enum value maps for SwapOperation.
+var (
+	SwapOperation_name = map[int32]string{
+		0: "SWAP_OPERATION_UNSPECIFIED",
+		1: "SWAP_OPERATION_CREATE",
+		2: "SWAP_OPERATION_RESIZE",
+		3: "SWAP_OPERATION_REMOVE",
+	}
+	SwapOperation_value = map[string]int32{
+		"SWAP_OPERATION_UNSPECIFIED": 0,
+		"SWAP_OPERATION_CREATE":      1,
+		"SWAP_OPERATION_RESIZE":      2,
+		"SWAP_OPERATION_REMOVE":      3,
+	}
+)
+
+func (x SwapOperation) Enum() *SwapOperation {
+	p := new(SwapOperation)
+	*p = x
+	return p
+}
+
+func (x SwapOperation) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SwapOperation) Descriptor() protoreflect.EnumDescriptor {
+	return file_sm_agent_v1_actions_proto_enumTypes[7].Descriptor()
+}
+
+func (SwapOperation) Type() protoreflect.EnumType {
+	return &file_sm_agent_v1_actions_proto_enumTypes[7]
+}
+
+func (x SwapOperation) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SwapOperation.Descriptor instead.
+func (SwapOperation) EnumDescriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{7}
+}
+
 type CommandEnvelope struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Job UUID. Also the replay-protection key.
@@ -593,6 +648,12 @@ type ActionRequest struct {
 	//	*ActionRequest_DockerVolumeList
 	//	*ActionRequest_DockerNetworkList
 	//	*ActionRequest_DockerPrune
+	//	*ActionRequest_TimeStatus
+	//	*ActionRequest_TimeSetTimezone
+	//	*ActionRequest_TimeSetNtp
+	//	*ActionRequest_SwapStatus
+	//	*ActionRequest_SwapConfigure
+	//	*ActionRequest_SwapSetSwappiness
 	Action        isActionRequest_Action `protobuf_oneof:"action"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -770,6 +831,60 @@ func (x *ActionRequest) GetDockerPrune() *DockerPruneRequest {
 	return nil
 }
 
+func (x *ActionRequest) GetTimeStatus() *TimeStatusRequest {
+	if x != nil {
+		if x, ok := x.Action.(*ActionRequest_TimeStatus); ok {
+			return x.TimeStatus
+		}
+	}
+	return nil
+}
+
+func (x *ActionRequest) GetTimeSetTimezone() *TimeSetTimezoneRequest {
+	if x != nil {
+		if x, ok := x.Action.(*ActionRequest_TimeSetTimezone); ok {
+			return x.TimeSetTimezone
+		}
+	}
+	return nil
+}
+
+func (x *ActionRequest) GetTimeSetNtp() *TimeSetNTPRequest {
+	if x != nil {
+		if x, ok := x.Action.(*ActionRequest_TimeSetNtp); ok {
+			return x.TimeSetNtp
+		}
+	}
+	return nil
+}
+
+func (x *ActionRequest) GetSwapStatus() *SwapStatusRequest {
+	if x != nil {
+		if x, ok := x.Action.(*ActionRequest_SwapStatus); ok {
+			return x.SwapStatus
+		}
+	}
+	return nil
+}
+
+func (x *ActionRequest) GetSwapConfigure() *SwapConfigureRequest {
+	if x != nil {
+		if x, ok := x.Action.(*ActionRequest_SwapConfigure); ok {
+			return x.SwapConfigure
+		}
+	}
+	return nil
+}
+
+func (x *ActionRequest) GetSwapSetSwappiness() *SwapSetSwappinessRequest {
+	if x != nil {
+		if x, ok := x.Action.(*ActionRequest_SwapSetSwappiness); ok {
+			return x.SwapSetSwappiness
+		}
+	}
+	return nil
+}
+
 type isActionRequest_Action interface {
 	isActionRequest_Action()
 }
@@ -834,6 +949,30 @@ type ActionRequest_DockerPrune struct {
 	DockerPrune *DockerPruneRequest `protobuf:"bytes,15,opt,name=docker_prune,json=dockerPrune,proto3,oneof"`
 }
 
+type ActionRequest_TimeStatus struct {
+	TimeStatus *TimeStatusRequest `protobuf:"bytes,16,opt,name=time_status,json=timeStatus,proto3,oneof"`
+}
+
+type ActionRequest_TimeSetTimezone struct {
+	TimeSetTimezone *TimeSetTimezoneRequest `protobuf:"bytes,17,opt,name=time_set_timezone,json=timeSetTimezone,proto3,oneof"`
+}
+
+type ActionRequest_TimeSetNtp struct {
+	TimeSetNtp *TimeSetNTPRequest `protobuf:"bytes,18,opt,name=time_set_ntp,json=timeSetNtp,proto3,oneof"`
+}
+
+type ActionRequest_SwapStatus struct {
+	SwapStatus *SwapStatusRequest `protobuf:"bytes,19,opt,name=swap_status,json=swapStatus,proto3,oneof"`
+}
+
+type ActionRequest_SwapConfigure struct {
+	SwapConfigure *SwapConfigureRequest `protobuf:"bytes,20,opt,name=swap_configure,json=swapConfigure,proto3,oneof"`
+}
+
+type ActionRequest_SwapSetSwappiness struct {
+	SwapSetSwappiness *SwapSetSwappinessRequest `protobuf:"bytes,21,opt,name=swap_set_swappiness,json=swapSetSwappiness,proto3,oneof"`
+}
+
 func (*ActionRequest_SystemInfo) isActionRequest_Action() {}
 
 func (*ActionRequest_ServiceList) isActionRequest_Action() {}
@@ -863,6 +1002,18 @@ func (*ActionRequest_DockerVolumeList) isActionRequest_Action() {}
 func (*ActionRequest_DockerNetworkList) isActionRequest_Action() {}
 
 func (*ActionRequest_DockerPrune) isActionRequest_Action() {}
+
+func (*ActionRequest_TimeStatus) isActionRequest_Action() {}
+
+func (*ActionRequest_TimeSetTimezone) isActionRequest_Action() {}
+
+func (*ActionRequest_TimeSetNtp) isActionRequest_Action() {}
+
+func (*ActionRequest_SwapStatus) isActionRequest_Action() {}
+
+func (*ActionRequest_SwapConfigure) isActionRequest_Action() {}
+
+func (*ActionRequest_SwapSetSwappiness) isActionRequest_Action() {}
 
 // CommandResult is sent from the agent to the control plane.
 type CommandResult struct {
@@ -954,6 +1105,12 @@ type ActionResult struct {
 	//	*ActionResult_DockerVolumeList
 	//	*ActionResult_DockerNetworkList
 	//	*ActionResult_DockerPrune
+	//	*ActionResult_TimeStatus
+	//	*ActionResult_TimeSetTimezone
+	//	*ActionResult_TimeSetNtp
+	//	*ActionResult_SwapStatus
+	//	*ActionResult_SwapConfigure
+	//	*ActionResult_SwapSetSwappiness
 	Result        isActionResult_Result `protobuf_oneof:"result"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1131,6 +1288,60 @@ func (x *ActionResult) GetDockerPrune() *DockerPruneResult {
 	return nil
 }
 
+func (x *ActionResult) GetTimeStatus() *TimeStatusResult {
+	if x != nil {
+		if x, ok := x.Result.(*ActionResult_TimeStatus); ok {
+			return x.TimeStatus
+		}
+	}
+	return nil
+}
+
+func (x *ActionResult) GetTimeSetTimezone() *TimeStatusResult {
+	if x != nil {
+		if x, ok := x.Result.(*ActionResult_TimeSetTimezone); ok {
+			return x.TimeSetTimezone
+		}
+	}
+	return nil
+}
+
+func (x *ActionResult) GetTimeSetNtp() *TimeStatusResult {
+	if x != nil {
+		if x, ok := x.Result.(*ActionResult_TimeSetNtp); ok {
+			return x.TimeSetNtp
+		}
+	}
+	return nil
+}
+
+func (x *ActionResult) GetSwapStatus() *SwapStatusResult {
+	if x != nil {
+		if x, ok := x.Result.(*ActionResult_SwapStatus); ok {
+			return x.SwapStatus
+		}
+	}
+	return nil
+}
+
+func (x *ActionResult) GetSwapConfigure() *SwapStatusResult {
+	if x != nil {
+		if x, ok := x.Result.(*ActionResult_SwapConfigure); ok {
+			return x.SwapConfigure
+		}
+	}
+	return nil
+}
+
+func (x *ActionResult) GetSwapSetSwappiness() *SwapStatusResult {
+	if x != nil {
+		if x, ok := x.Result.(*ActionResult_SwapSetSwappiness); ok {
+			return x.SwapSetSwappiness
+		}
+	}
+	return nil
+}
+
 type isActionResult_Result interface {
 	isActionResult_Result()
 }
@@ -1195,6 +1406,30 @@ type ActionResult_DockerPrune struct {
 	DockerPrune *DockerPruneResult `protobuf:"bytes,15,opt,name=docker_prune,json=dockerPrune,proto3,oneof"`
 }
 
+type ActionResult_TimeStatus struct {
+	TimeStatus *TimeStatusResult `protobuf:"bytes,16,opt,name=time_status,json=timeStatus,proto3,oneof"`
+}
+
+type ActionResult_TimeSetTimezone struct {
+	TimeSetTimezone *TimeStatusResult `protobuf:"bytes,17,opt,name=time_set_timezone,json=timeSetTimezone,proto3,oneof"`
+}
+
+type ActionResult_TimeSetNtp struct {
+	TimeSetNtp *TimeStatusResult `protobuf:"bytes,18,opt,name=time_set_ntp,json=timeSetNtp,proto3,oneof"`
+}
+
+type ActionResult_SwapStatus struct {
+	SwapStatus *SwapStatusResult `protobuf:"bytes,19,opt,name=swap_status,json=swapStatus,proto3,oneof"`
+}
+
+type ActionResult_SwapConfigure struct {
+	SwapConfigure *SwapStatusResult `protobuf:"bytes,20,opt,name=swap_configure,json=swapConfigure,proto3,oneof"`
+}
+
+type ActionResult_SwapSetSwappiness struct {
+	SwapSetSwappiness *SwapStatusResult `protobuf:"bytes,21,opt,name=swap_set_swappiness,json=swapSetSwappiness,proto3,oneof"`
+}
+
 func (*ActionResult_SystemInfo) isActionResult_Result() {}
 
 func (*ActionResult_ServiceList) isActionResult_Result() {}
@@ -1224,6 +1459,18 @@ func (*ActionResult_DockerVolumeList) isActionResult_Result() {}
 func (*ActionResult_DockerNetworkList) isActionResult_Result() {}
 
 func (*ActionResult_DockerPrune) isActionResult_Result() {}
+
+func (*ActionResult_TimeStatus) isActionResult_Result() {}
+
+func (*ActionResult_TimeSetTimezone) isActionResult_Result() {}
+
+func (*ActionResult_TimeSetNtp) isActionResult_Result() {}
+
+func (*ActionResult_SwapStatus) isActionResult_Result() {}
+
+func (*ActionResult_SwapConfigure) isActionResult_Result() {}
+
+func (*ActionResult_SwapSetSwappiness) isActionResult_Result() {}
 
 type SystemInfoRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -3881,6 +4128,512 @@ func (x *DockerPruneResult) GetSpaceReclaimedBytes() uint64 {
 	return 0
 }
 
+type TimeStatusRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TimeStatusRequest) Reset() {
+	*x = TimeStatusRequest{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TimeStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TimeStatusRequest) ProtoMessage() {}
+
+func (x *TimeStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TimeStatusRequest.ProtoReflect.Descriptor instead.
+func (*TimeStatusRequest) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{47}
+}
+
+type TimeStatusResult struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// IANA name, e.g. "Europe/Berlin" or "UTC".
+	Timezone string `protobuf:"bytes,1,opt,name=timezone,proto3" json:"timezone,omitempty"`
+	// The RTC is kept in local time instead of UTC (usually a misconfiguration).
+	LocalRtc bool `protobuf:"varint,2,opt,name=local_rtc,json=localRtc,proto3" json:"local_rtc,omitempty"`
+	// NTP synchronisation is enabled (systemd-timesyncd or chronyd).
+	NtpEnabled bool `protobuf:"varint,3,opt,name=ntp_enabled,json=ntpEnabled,proto3" json:"ntp_enabled,omitempty"`
+	// The clock is currently synchronised.
+	NtpSynchronized bool `protobuf:"varint,4,opt,name=ntp_synchronized,json=ntpSynchronized,proto3" json:"ntp_synchronized,omitempty"`
+	// An NTP service is available to enable.
+	CanNtp        bool                   `protobuf:"varint,5,opt,name=can_ntp,json=canNtp,proto3" json:"can_ntp,omitempty"`
+	Time          *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=time,proto3" json:"time,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TimeStatusResult) Reset() {
+	*x = TimeStatusResult{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TimeStatusResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TimeStatusResult) ProtoMessage() {}
+
+func (x *TimeStatusResult) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TimeStatusResult.ProtoReflect.Descriptor instead.
+func (*TimeStatusResult) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *TimeStatusResult) GetTimezone() string {
+	if x != nil {
+		return x.Timezone
+	}
+	return ""
+}
+
+func (x *TimeStatusResult) GetLocalRtc() bool {
+	if x != nil {
+		return x.LocalRtc
+	}
+	return false
+}
+
+func (x *TimeStatusResult) GetNtpEnabled() bool {
+	if x != nil {
+		return x.NtpEnabled
+	}
+	return false
+}
+
+func (x *TimeStatusResult) GetNtpSynchronized() bool {
+	if x != nil {
+		return x.NtpSynchronized
+	}
+	return false
+}
+
+func (x *TimeStatusResult) GetCanNtp() bool {
+	if x != nil {
+		return x.CanNtp
+	}
+	return false
+}
+
+func (x *TimeStatusResult) GetTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Time
+	}
+	return nil
+}
+
+type TimeSetTimezoneRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// IANA name: letters, digits, "_", "-", "+", at most three "/"-separated parts,
+	// at most 64 bytes, e.g. "America/Argentina/Buenos_Aires".
+	Timezone      string `protobuf:"bytes,1,opt,name=timezone,proto3" json:"timezone,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TimeSetTimezoneRequest) Reset() {
+	*x = TimeSetTimezoneRequest{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TimeSetTimezoneRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TimeSetTimezoneRequest) ProtoMessage() {}
+
+func (x *TimeSetTimezoneRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TimeSetTimezoneRequest.ProtoReflect.Descriptor instead.
+func (*TimeSetTimezoneRequest) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *TimeSetTimezoneRequest) GetTimezone() string {
+	if x != nil {
+		return x.Timezone
+	}
+	return ""
+}
+
+type TimeSetNTPRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Enabled       bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TimeSetNTPRequest) Reset() {
+	*x = TimeSetNTPRequest{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TimeSetNTPRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TimeSetNTPRequest) ProtoMessage() {}
+
+func (x *TimeSetNTPRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TimeSetNTPRequest.ProtoReflect.Descriptor instead.
+func (*TimeSetNTPRequest) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *TimeSetNTPRequest) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+type SwapStatusRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SwapStatusRequest) Reset() {
+	*x = SwapStatusRequest{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SwapStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SwapStatusRequest) ProtoMessage() {}
+
+func (x *SwapStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SwapStatusRequest.ProtoReflect.Descriptor instead.
+func (*SwapStatusRequest) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{51}
+}
+
+type SwapStatusResult struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Devices []*SwapDevice          `protobuf:"bytes,1,rep,name=devices,proto3" json:"devices,omitempty"`
+	// vm.swappiness, 0-200.
+	Swappiness uint32 `protobuf:"varint,2,opt,name=swappiness,proto3" json:"swappiness,omitempty"`
+	// Path of the managed swapfile.
+	ManagedPath string `protobuf:"bytes,3,opt,name=managed_path,json=managedPath,proto3" json:"managed_path,omitempty"`
+	// Size of the managed swapfile; 0 if there is none.
+	ManagedSizeBytes uint64 `protobuf:"varint,4,opt,name=managed_size_bytes,json=managedSizeBytes,proto3" json:"managed_size_bytes,omitempty"`
+	// The managed swapfile is in use.
+	ManagedActive bool `protobuf:"varint,5,opt,name=managed_active,json=managedActive,proto3" json:"managed_active,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SwapStatusResult) Reset() {
+	*x = SwapStatusResult{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SwapStatusResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SwapStatusResult) ProtoMessage() {}
+
+func (x *SwapStatusResult) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SwapStatusResult.ProtoReflect.Descriptor instead.
+func (*SwapStatusResult) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{52}
+}
+
+func (x *SwapStatusResult) GetDevices() []*SwapDevice {
+	if x != nil {
+		return x.Devices
+	}
+	return nil
+}
+
+func (x *SwapStatusResult) GetSwappiness() uint32 {
+	if x != nil {
+		return x.Swappiness
+	}
+	return 0
+}
+
+func (x *SwapStatusResult) GetManagedPath() string {
+	if x != nil {
+		return x.ManagedPath
+	}
+	return ""
+}
+
+func (x *SwapStatusResult) GetManagedSizeBytes() uint64 {
+	if x != nil {
+		return x.ManagedSizeBytes
+	}
+	return 0
+}
+
+func (x *SwapStatusResult) GetManagedActive() bool {
+	if x != nil {
+		return x.ManagedActive
+	}
+	return false
+}
+
+type SwapDevice struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Path  string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	// "file" or "partition".
+	Type          string `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	SizeBytes     uint64 `protobuf:"varint,3,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	UsedBytes     uint64 `protobuf:"varint,4,opt,name=used_bytes,json=usedBytes,proto3" json:"used_bytes,omitempty"`
+	Priority      int32  `protobuf:"varint,5,opt,name=priority,proto3" json:"priority,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SwapDevice) Reset() {
+	*x = SwapDevice{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SwapDevice) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SwapDevice) ProtoMessage() {}
+
+func (x *SwapDevice) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SwapDevice.ProtoReflect.Descriptor instead.
+func (*SwapDevice) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *SwapDevice) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *SwapDevice) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *SwapDevice) GetSizeBytes() uint64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+func (x *SwapDevice) GetUsedBytes() uint64 {
+	if x != nil {
+		return x.UsedBytes
+	}
+	return 0
+}
+
+func (x *SwapDevice) GetPriority() int32 {
+	if x != nil {
+		return x.Priority
+	}
+	return 0
+}
+
+type SwapConfigureRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Operation SwapOperation          `protobuf:"varint,1,opt,name=operation,proto3,enum=sm.agent.v1.SwapOperation" json:"operation,omitempty"`
+	// Create and resize: size in MiB, 64 to 65536.
+	SizeMib       uint32 `protobuf:"varint,2,opt,name=size_mib,json=sizeMib,proto3" json:"size_mib,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SwapConfigureRequest) Reset() {
+	*x = SwapConfigureRequest{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SwapConfigureRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SwapConfigureRequest) ProtoMessage() {}
+
+func (x *SwapConfigureRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SwapConfigureRequest.ProtoReflect.Descriptor instead.
+func (*SwapConfigureRequest) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *SwapConfigureRequest) GetOperation() SwapOperation {
+	if x != nil {
+		return x.Operation
+	}
+	return SwapOperation_SWAP_OPERATION_UNSPECIFIED
+}
+
+func (x *SwapConfigureRequest) GetSizeMib() uint32 {
+	if x != nil {
+		return x.SizeMib
+	}
+	return 0
+}
+
+type SwapSetSwappinessRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 0-100. Persisted in /etc/sysctl.d and applied immediately.
+	Swappiness    uint32 `protobuf:"varint,1,opt,name=swappiness,proto3" json:"swappiness,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SwapSetSwappinessRequest) Reset() {
+	*x = SwapSetSwappinessRequest{}
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SwapSetSwappinessRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SwapSetSwappinessRequest) ProtoMessage() {}
+
+func (x *SwapSetSwappinessRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SwapSetSwappinessRequest.ProtoReflect.Descriptor instead.
+func (*SwapSetSwappinessRequest) Descriptor() ([]byte, []int) {
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *SwapSetSwappinessRequest) GetSwappiness() uint32 {
+	if x != nil {
+		return x.Swappiness
+	}
+	return 0
+}
+
 type ExecuteRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Command       *Command               `protobuf:"bytes,1,opt,name=command,proto3" json:"command,omitempty"`
@@ -3890,7 +4643,7 @@ type ExecuteRequest struct {
 
 func (x *ExecuteRequest) Reset() {
 	*x = ExecuteRequest{}
-	mi := &file_sm_agent_v1_actions_proto_msgTypes[47]
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3902,7 +4655,7 @@ func (x *ExecuteRequest) String() string {
 func (*ExecuteRequest) ProtoMessage() {}
 
 func (x *ExecuteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sm_agent_v1_actions_proto_msgTypes[47]
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3915,7 +4668,7 @@ func (x *ExecuteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecuteRequest.ProtoReflect.Descriptor instead.
 func (*ExecuteRequest) Descriptor() ([]byte, []int) {
-	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{47}
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *ExecuteRequest) GetCommand() *Command {
@@ -3934,7 +4687,7 @@ type ExecuteResponse struct {
 
 func (x *ExecuteResponse) Reset() {
 	*x = ExecuteResponse{}
-	mi := &file_sm_agent_v1_actions_proto_msgTypes[48]
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3946,7 +4699,7 @@ func (x *ExecuteResponse) String() string {
 func (*ExecuteResponse) ProtoMessage() {}
 
 func (x *ExecuteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sm_agent_v1_actions_proto_msgTypes[48]
+	mi := &file_sm_agent_v1_actions_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3959,7 +4712,7 @@ func (x *ExecuteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecuteResponse.ProtoReflect.Descriptor instead.
 func (*ExecuteResponse) Descriptor() ([]byte, []int) {
-	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{48}
+	return file_sm_agent_v1_actions_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *ExecuteResponse) GetResult() *CommandResult {
@@ -3984,7 +4737,7 @@ const file_sm_agent_v1_actions_proto_rawDesc = "" +
 	"\arequest\x18\x06 \x01(\v2\x1a.sm.agent.v1.ActionRequestR\arequest\"C\n" +
 	"\aCommand\x12\x1a\n" +
 	"\benvelope\x18\x01 \x01(\fR\benvelope\x12\x1c\n" +
-	"\tsignature\x18\x02 \x01(\fR\tsignature\"\x92\t\n" +
+	"\tsignature\x18\x02 \x01(\fR\tsignature\"\xd4\f\n" +
 	"\rActionRequest\x12A\n" +
 	"\vsystem_info\x18\x01 \x01(\v2\x1e.sm.agent.v1.SystemInfoRequestH\x00R\n" +
 	"systemInfo\x12D\n" +
@@ -4003,13 +4756,22 @@ const file_sm_agent_v1_actions_proto_rawDesc = "" +
 	"\x11docker_image_list\x18\f \x01(\v2#.sm.agent.v1.DockerImageListRequestH\x00R\x0fdockerImageList\x12T\n" +
 	"\x12docker_volume_list\x18\r \x01(\v2$.sm.agent.v1.DockerVolumeListRequestH\x00R\x10dockerVolumeList\x12W\n" +
 	"\x13docker_network_list\x18\x0e \x01(\v2%.sm.agent.v1.DockerNetworkListRequestH\x00R\x11dockerNetworkList\x12D\n" +
-	"\fdocker_prune\x18\x0f \x01(\v2\x1f.sm.agent.v1.DockerPruneRequestH\x00R\vdockerPruneB\b\n" +
+	"\fdocker_prune\x18\x0f \x01(\v2\x1f.sm.agent.v1.DockerPruneRequestH\x00R\vdockerPrune\x12A\n" +
+	"\vtime_status\x18\x10 \x01(\v2\x1e.sm.agent.v1.TimeStatusRequestH\x00R\n" +
+	"timeStatus\x12Q\n" +
+	"\x11time_set_timezone\x18\x11 \x01(\v2#.sm.agent.v1.TimeSetTimezoneRequestH\x00R\x0ftimeSetTimezone\x12B\n" +
+	"\ftime_set_ntp\x18\x12 \x01(\v2\x1e.sm.agent.v1.TimeSetNTPRequestH\x00R\n" +
+	"timeSetNtp\x12A\n" +
+	"\vswap_status\x18\x13 \x01(\v2\x1e.sm.agent.v1.SwapStatusRequestH\x00R\n" +
+	"swapStatus\x12J\n" +
+	"\x0eswap_configure\x18\x14 \x01(\v2!.sm.agent.v1.SwapConfigureRequestH\x00R\rswapConfigure\x12W\n" +
+	"\x13swap_set_swappiness\x18\x15 \x01(\v2%.sm.agent.v1.SwapSetSwappinessRequestH\x00R\x11swapSetSwappinessB\b\n" +
 	"\x06action\"\x9c\x01\n" +
 	"\rCommandResult\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x122\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x1a.sm.agent.v1.CommandStatusR\x06status\x12\x14\n" +
 	"\x05error\x18\x03 \x01(\tR\x05error\x121\n" +
-	"\x06result\x18\x04 \x01(\v2\x19.sm.agent.v1.ActionResultR\x06result\"\x82\t\n" +
+	"\x06result\x18\x04 \x01(\v2\x19.sm.agent.v1.ActionResultR\x06result\"\xaf\f\n" +
 	"\fActionResult\x12@\n" +
 	"\vsystem_info\x18\x01 \x01(\v2\x1d.sm.agent.v1.SystemInfoResultH\x00R\n" +
 	"systemInfo\x12C\n" +
@@ -4028,7 +4790,16 @@ const file_sm_agent_v1_actions_proto_rawDesc = "" +
 	"\x11docker_image_list\x18\f \x01(\v2\".sm.agent.v1.DockerImageListResultH\x00R\x0fdockerImageList\x12S\n" +
 	"\x12docker_volume_list\x18\r \x01(\v2#.sm.agent.v1.DockerVolumeListResultH\x00R\x10dockerVolumeList\x12V\n" +
 	"\x13docker_network_list\x18\x0e \x01(\v2$.sm.agent.v1.DockerNetworkListResultH\x00R\x11dockerNetworkList\x12C\n" +
-	"\fdocker_prune\x18\x0f \x01(\v2\x1e.sm.agent.v1.DockerPruneResultH\x00R\vdockerPruneB\b\n" +
+	"\fdocker_prune\x18\x0f \x01(\v2\x1e.sm.agent.v1.DockerPruneResultH\x00R\vdockerPrune\x12@\n" +
+	"\vtime_status\x18\x10 \x01(\v2\x1d.sm.agent.v1.TimeStatusResultH\x00R\n" +
+	"timeStatus\x12K\n" +
+	"\x11time_set_timezone\x18\x11 \x01(\v2\x1d.sm.agent.v1.TimeStatusResultH\x00R\x0ftimeSetTimezone\x12A\n" +
+	"\ftime_set_ntp\x18\x12 \x01(\v2\x1d.sm.agent.v1.TimeStatusResultH\x00R\n" +
+	"timeSetNtp\x12@\n" +
+	"\vswap_status\x18\x13 \x01(\v2\x1d.sm.agent.v1.SwapStatusResultH\x00R\n" +
+	"swapStatus\x12F\n" +
+	"\x0eswap_configure\x18\x14 \x01(\v2\x1d.sm.agent.v1.SwapStatusResultH\x00R\rswapConfigure\x12O\n" +
+	"\x13swap_set_swappiness\x18\x15 \x01(\v2\x1d.sm.agent.v1.SwapStatusResultH\x00R\x11swapSetSwappinessB\b\n" +
 	"\x06result\"\x13\n" +
 	"\x11SystemInfoRequest\"\xa7\x03\n" +
 	"\x10SystemInfoResult\x12\x1a\n" +
@@ -4237,7 +5008,45 @@ const file_sm_agent_v1_actions_proto_rawDesc = "" +
 	"\x11DockerPruneResult\x12\x18\n" +
 	"\adeleted\x18\x01 \x03(\tR\adeleted\x12#\n" +
 	"\rdeleted_count\x18\x02 \x01(\rR\fdeletedCount\x122\n" +
-	"\x15space_reclaimed_bytes\x18\x03 \x01(\x04R\x13spaceReclaimedBytes\"@\n" +
+	"\x15space_reclaimed_bytes\x18\x03 \x01(\x04R\x13spaceReclaimedBytes\"\x13\n" +
+	"\x11TimeStatusRequest\"\xe0\x01\n" +
+	"\x10TimeStatusResult\x12\x1a\n" +
+	"\btimezone\x18\x01 \x01(\tR\btimezone\x12\x1b\n" +
+	"\tlocal_rtc\x18\x02 \x01(\bR\blocalRtc\x12\x1f\n" +
+	"\vntp_enabled\x18\x03 \x01(\bR\n" +
+	"ntpEnabled\x12)\n" +
+	"\x10ntp_synchronized\x18\x04 \x01(\bR\x0fntpSynchronized\x12\x17\n" +
+	"\acan_ntp\x18\x05 \x01(\bR\x06canNtp\x12.\n" +
+	"\x04time\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x04time\"4\n" +
+	"\x16TimeSetTimezoneRequest\x12\x1a\n" +
+	"\btimezone\x18\x01 \x01(\tR\btimezone\"-\n" +
+	"\x11TimeSetNTPRequest\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\"\x13\n" +
+	"\x11SwapStatusRequest\"\xdd\x01\n" +
+	"\x10SwapStatusResult\x121\n" +
+	"\adevices\x18\x01 \x03(\v2\x17.sm.agent.v1.SwapDeviceR\adevices\x12\x1e\n" +
+	"\n" +
+	"swappiness\x18\x02 \x01(\rR\n" +
+	"swappiness\x12!\n" +
+	"\fmanaged_path\x18\x03 \x01(\tR\vmanagedPath\x12,\n" +
+	"\x12managed_size_bytes\x18\x04 \x01(\x04R\x10managedSizeBytes\x12%\n" +
+	"\x0emanaged_active\x18\x05 \x01(\bR\rmanagedActive\"\x8e\x01\n" +
+	"\n" +
+	"SwapDevice\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\x03 \x01(\x04R\tsizeBytes\x12\x1d\n" +
+	"\n" +
+	"used_bytes\x18\x04 \x01(\x04R\tusedBytes\x12\x1a\n" +
+	"\bpriority\x18\x05 \x01(\x05R\bpriority\"k\n" +
+	"\x14SwapConfigureRequest\x128\n" +
+	"\toperation\x18\x01 \x01(\x0e2\x1a.sm.agent.v1.SwapOperationR\toperation\x12\x19\n" +
+	"\bsize_mib\x18\x02 \x01(\rR\asizeMib\":\n" +
+	"\x18SwapSetSwappinessRequest\x12\x1e\n" +
+	"\n" +
+	"swappiness\x18\x01 \x01(\rR\n" +
+	"swappiness\"@\n" +
 	"\x0eExecuteRequest\x12.\n" +
 	"\acommand\x18\x01 \x01(\v2\x14.sm.agent.v1.CommandR\acommand\"E\n" +
 	"\x0fExecuteResponse\x122\n" +
@@ -4290,7 +5099,12 @@ const file_sm_agent_v1_actions_proto_rawDesc = "" +
 	"\x1aDOCKER_PRUNE_TARGET_IMAGES\x10\x02\x12 \n" +
 	"\x1cDOCKER_PRUNE_TARGET_NETWORKS\x10\x03\x12\x1f\n" +
 	"\x1bDOCKER_PRUNE_TARGET_VOLUMES\x10\x04\x12#\n" +
-	"\x1fDOCKER_PRUNE_TARGET_BUILD_CACHE\x10\x052Y\n" +
+	"\x1fDOCKER_PRUNE_TARGET_BUILD_CACHE\x10\x05*\x80\x01\n" +
+	"\rSwapOperation\x12\x1e\n" +
+	"\x1aSWAP_OPERATION_UNSPECIFIED\x10\x00\x12\x19\n" +
+	"\x15SWAP_OPERATION_CREATE\x10\x01\x12\x19\n" +
+	"\x15SWAP_OPERATION_RESIZE\x10\x02\x12\x19\n" +
+	"\x15SWAP_OPERATION_REMOVE\x10\x032Y\n" +
 	"\x11PrivilegedService\x12D\n" +
 	"\aExecute\x12\x1b.sm.agent.v1.ExecuteRequest\x1a\x1c.sm.agent.v1.ExecuteResponseB\xb1\x01\n" +
 	"\x0fcom.sm.agent.v1B\fActionsProtoP\x01ZBgithub.com/monirujjaman-dev/server-manager/gen/sm/agent/v1;agentv1\xa2\x02\x03SAX\xaa\x02\vSm.Agent.V1\xca\x02\vSm\\Agent\\V1\xe2\x02\x17Sm\\Agent\\V1\\GPBMetadata\xea\x02\rSm::Agent::V1b\x06proto3"
@@ -4307,8 +5121,8 @@ func file_sm_agent_v1_actions_proto_rawDescGZIP() []byte {
 	return file_sm_agent_v1_actions_proto_rawDescData
 }
 
-var file_sm_agent_v1_actions_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
-var file_sm_agent_v1_actions_proto_msgTypes = make([]protoimpl.MessageInfo, 49)
+var file_sm_agent_v1_actions_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
+var file_sm_agent_v1_actions_proto_msgTypes = make([]protoimpl.MessageInfo, 58)
 var file_sm_agent_v1_actions_proto_goTypes = []any{
 	(CommandStatus)(0),                    // 0: sm.agent.v1.CommandStatus
 	(ServiceOperation)(0),                 // 1: sm.agent.v1.ServiceOperation
@@ -4317,127 +5131,152 @@ var file_sm_agent_v1_actions_proto_goTypes = []any{
 	(AuthEventKind)(0),                    // 4: sm.agent.v1.AuthEventKind
 	(DockerContainerOperation)(0),         // 5: sm.agent.v1.DockerContainerOperation
 	(DockerPruneTarget)(0),                // 6: sm.agent.v1.DockerPruneTarget
-	(*CommandEnvelope)(nil),               // 7: sm.agent.v1.CommandEnvelope
-	(*Command)(nil),                       // 8: sm.agent.v1.Command
-	(*ActionRequest)(nil),                 // 9: sm.agent.v1.ActionRequest
-	(*CommandResult)(nil),                 // 10: sm.agent.v1.CommandResult
-	(*ActionResult)(nil),                  // 11: sm.agent.v1.ActionResult
-	(*SystemInfoRequest)(nil),             // 12: sm.agent.v1.SystemInfoRequest
-	(*SystemInfoResult)(nil),              // 13: sm.agent.v1.SystemInfoResult
-	(*Filesystem)(nil),                    // 14: sm.agent.v1.Filesystem
-	(*ServiceListRequest)(nil),            // 15: sm.agent.v1.ServiceListRequest
-	(*ServiceListResult)(nil),             // 16: sm.agent.v1.ServiceListResult
-	(*ServiceUnit)(nil),                   // 17: sm.agent.v1.ServiceUnit
-	(*ServiceControlRequest)(nil),         // 18: sm.agent.v1.ServiceControlRequest
-	(*ServiceControlResult)(nil),          // 19: sm.agent.v1.ServiceControlResult
-	(*ProcessListRequest)(nil),            // 20: sm.agent.v1.ProcessListRequest
-	(*ProcessListResult)(nil),             // 21: sm.agent.v1.ProcessListResult
-	(*Process)(nil),                       // 22: sm.agent.v1.Process
-	(*ProcessSignalRequest)(nil),          // 23: sm.agent.v1.ProcessSignalRequest
-	(*ProcessSignalResult)(nil),           // 24: sm.agent.v1.ProcessSignalResult
-	(*LogQueryRequest)(nil),               // 25: sm.agent.v1.LogQueryRequest
-	(*LogQueryResult)(nil),                // 26: sm.agent.v1.LogQueryResult
-	(*LogEntry)(nil),                      // 27: sm.agent.v1.LogEntry
-	(*AuthLogRequest)(nil),                // 28: sm.agent.v1.AuthLogRequest
-	(*AuthLogResult)(nil),                 // 29: sm.agent.v1.AuthLogResult
-	(*AuthEvent)(nil),                     // 30: sm.agent.v1.AuthEvent
-	(*DockerContainerListRequest)(nil),    // 31: sm.agent.v1.DockerContainerListRequest
-	(*DockerContainerListResult)(nil),     // 32: sm.agent.v1.DockerContainerListResult
-	(*DockerContainer)(nil),               // 33: sm.agent.v1.DockerContainer
-	(*DockerPort)(nil),                    // 34: sm.agent.v1.DockerPort
-	(*DockerContainerControlRequest)(nil), // 35: sm.agent.v1.DockerContainerControlRequest
-	(*DockerContainerControlResult)(nil),  // 36: sm.agent.v1.DockerContainerControlResult
-	(*DockerLogsRequest)(nil),             // 37: sm.agent.v1.DockerLogsRequest
-	(*DockerLogsResult)(nil),              // 38: sm.agent.v1.DockerLogsResult
-	(*DockerLogLine)(nil),                 // 39: sm.agent.v1.DockerLogLine
-	(*DockerStatsRequest)(nil),            // 40: sm.agent.v1.DockerStatsRequest
-	(*DockerStatsResult)(nil),             // 41: sm.agent.v1.DockerStatsResult
-	(*DockerContainerStats)(nil),          // 42: sm.agent.v1.DockerContainerStats
-	(*DockerImageListRequest)(nil),        // 43: sm.agent.v1.DockerImageListRequest
-	(*DockerImageListResult)(nil),         // 44: sm.agent.v1.DockerImageListResult
-	(*DockerImage)(nil),                   // 45: sm.agent.v1.DockerImage
-	(*DockerVolumeListRequest)(nil),       // 46: sm.agent.v1.DockerVolumeListRequest
-	(*DockerVolumeListResult)(nil),        // 47: sm.agent.v1.DockerVolumeListResult
-	(*DockerVolume)(nil),                  // 48: sm.agent.v1.DockerVolume
-	(*DockerNetworkListRequest)(nil),      // 49: sm.agent.v1.DockerNetworkListRequest
-	(*DockerNetworkListResult)(nil),       // 50: sm.agent.v1.DockerNetworkListResult
-	(*DockerNetwork)(nil),                 // 51: sm.agent.v1.DockerNetwork
-	(*DockerPruneRequest)(nil),            // 52: sm.agent.v1.DockerPruneRequest
-	(*DockerPruneResult)(nil),             // 53: sm.agent.v1.DockerPruneResult
-	(*ExecuteRequest)(nil),                // 54: sm.agent.v1.ExecuteRequest
-	(*ExecuteResponse)(nil),               // 55: sm.agent.v1.ExecuteResponse
-	(*timestamppb.Timestamp)(nil),         // 56: google.protobuf.Timestamp
+	(SwapOperation)(0),                    // 7: sm.agent.v1.SwapOperation
+	(*CommandEnvelope)(nil),               // 8: sm.agent.v1.CommandEnvelope
+	(*Command)(nil),                       // 9: sm.agent.v1.Command
+	(*ActionRequest)(nil),                 // 10: sm.agent.v1.ActionRequest
+	(*CommandResult)(nil),                 // 11: sm.agent.v1.CommandResult
+	(*ActionResult)(nil),                  // 12: sm.agent.v1.ActionResult
+	(*SystemInfoRequest)(nil),             // 13: sm.agent.v1.SystemInfoRequest
+	(*SystemInfoResult)(nil),              // 14: sm.agent.v1.SystemInfoResult
+	(*Filesystem)(nil),                    // 15: sm.agent.v1.Filesystem
+	(*ServiceListRequest)(nil),            // 16: sm.agent.v1.ServiceListRequest
+	(*ServiceListResult)(nil),             // 17: sm.agent.v1.ServiceListResult
+	(*ServiceUnit)(nil),                   // 18: sm.agent.v1.ServiceUnit
+	(*ServiceControlRequest)(nil),         // 19: sm.agent.v1.ServiceControlRequest
+	(*ServiceControlResult)(nil),          // 20: sm.agent.v1.ServiceControlResult
+	(*ProcessListRequest)(nil),            // 21: sm.agent.v1.ProcessListRequest
+	(*ProcessListResult)(nil),             // 22: sm.agent.v1.ProcessListResult
+	(*Process)(nil),                       // 23: sm.agent.v1.Process
+	(*ProcessSignalRequest)(nil),          // 24: sm.agent.v1.ProcessSignalRequest
+	(*ProcessSignalResult)(nil),           // 25: sm.agent.v1.ProcessSignalResult
+	(*LogQueryRequest)(nil),               // 26: sm.agent.v1.LogQueryRequest
+	(*LogQueryResult)(nil),                // 27: sm.agent.v1.LogQueryResult
+	(*LogEntry)(nil),                      // 28: sm.agent.v1.LogEntry
+	(*AuthLogRequest)(nil),                // 29: sm.agent.v1.AuthLogRequest
+	(*AuthLogResult)(nil),                 // 30: sm.agent.v1.AuthLogResult
+	(*AuthEvent)(nil),                     // 31: sm.agent.v1.AuthEvent
+	(*DockerContainerListRequest)(nil),    // 32: sm.agent.v1.DockerContainerListRequest
+	(*DockerContainerListResult)(nil),     // 33: sm.agent.v1.DockerContainerListResult
+	(*DockerContainer)(nil),               // 34: sm.agent.v1.DockerContainer
+	(*DockerPort)(nil),                    // 35: sm.agent.v1.DockerPort
+	(*DockerContainerControlRequest)(nil), // 36: sm.agent.v1.DockerContainerControlRequest
+	(*DockerContainerControlResult)(nil),  // 37: sm.agent.v1.DockerContainerControlResult
+	(*DockerLogsRequest)(nil),             // 38: sm.agent.v1.DockerLogsRequest
+	(*DockerLogsResult)(nil),              // 39: sm.agent.v1.DockerLogsResult
+	(*DockerLogLine)(nil),                 // 40: sm.agent.v1.DockerLogLine
+	(*DockerStatsRequest)(nil),            // 41: sm.agent.v1.DockerStatsRequest
+	(*DockerStatsResult)(nil),             // 42: sm.agent.v1.DockerStatsResult
+	(*DockerContainerStats)(nil),          // 43: sm.agent.v1.DockerContainerStats
+	(*DockerImageListRequest)(nil),        // 44: sm.agent.v1.DockerImageListRequest
+	(*DockerImageListResult)(nil),         // 45: sm.agent.v1.DockerImageListResult
+	(*DockerImage)(nil),                   // 46: sm.agent.v1.DockerImage
+	(*DockerVolumeListRequest)(nil),       // 47: sm.agent.v1.DockerVolumeListRequest
+	(*DockerVolumeListResult)(nil),        // 48: sm.agent.v1.DockerVolumeListResult
+	(*DockerVolume)(nil),                  // 49: sm.agent.v1.DockerVolume
+	(*DockerNetworkListRequest)(nil),      // 50: sm.agent.v1.DockerNetworkListRequest
+	(*DockerNetworkListResult)(nil),       // 51: sm.agent.v1.DockerNetworkListResult
+	(*DockerNetwork)(nil),                 // 52: sm.agent.v1.DockerNetwork
+	(*DockerPruneRequest)(nil),            // 53: sm.agent.v1.DockerPruneRequest
+	(*DockerPruneResult)(nil),             // 54: sm.agent.v1.DockerPruneResult
+	(*TimeStatusRequest)(nil),             // 55: sm.agent.v1.TimeStatusRequest
+	(*TimeStatusResult)(nil),              // 56: sm.agent.v1.TimeStatusResult
+	(*TimeSetTimezoneRequest)(nil),        // 57: sm.agent.v1.TimeSetTimezoneRequest
+	(*TimeSetNTPRequest)(nil),             // 58: sm.agent.v1.TimeSetNTPRequest
+	(*SwapStatusRequest)(nil),             // 59: sm.agent.v1.SwapStatusRequest
+	(*SwapStatusResult)(nil),              // 60: sm.agent.v1.SwapStatusResult
+	(*SwapDevice)(nil),                    // 61: sm.agent.v1.SwapDevice
+	(*SwapConfigureRequest)(nil),          // 62: sm.agent.v1.SwapConfigureRequest
+	(*SwapSetSwappinessRequest)(nil),      // 63: sm.agent.v1.SwapSetSwappinessRequest
+	(*ExecuteRequest)(nil),                // 64: sm.agent.v1.ExecuteRequest
+	(*ExecuteResponse)(nil),               // 65: sm.agent.v1.ExecuteResponse
+	(*timestamppb.Timestamp)(nil),         // 66: google.protobuf.Timestamp
 }
 var file_sm_agent_v1_actions_proto_depIdxs = []int32{
-	56, // 0: sm.agent.v1.CommandEnvelope.issued_at:type_name -> google.protobuf.Timestamp
-	56, // 1: sm.agent.v1.CommandEnvelope.expires_at:type_name -> google.protobuf.Timestamp
-	9,  // 2: sm.agent.v1.CommandEnvelope.request:type_name -> sm.agent.v1.ActionRequest
-	12, // 3: sm.agent.v1.ActionRequest.system_info:type_name -> sm.agent.v1.SystemInfoRequest
-	15, // 4: sm.agent.v1.ActionRequest.service_list:type_name -> sm.agent.v1.ServiceListRequest
-	18, // 5: sm.agent.v1.ActionRequest.service_control:type_name -> sm.agent.v1.ServiceControlRequest
-	20, // 6: sm.agent.v1.ActionRequest.process_list:type_name -> sm.agent.v1.ProcessListRequest
-	23, // 7: sm.agent.v1.ActionRequest.process_signal:type_name -> sm.agent.v1.ProcessSignalRequest
-	25, // 8: sm.agent.v1.ActionRequest.log_query:type_name -> sm.agent.v1.LogQueryRequest
-	28, // 9: sm.agent.v1.ActionRequest.auth_log:type_name -> sm.agent.v1.AuthLogRequest
-	31, // 10: sm.agent.v1.ActionRequest.docker_container_list:type_name -> sm.agent.v1.DockerContainerListRequest
-	35, // 11: sm.agent.v1.ActionRequest.docker_container_control:type_name -> sm.agent.v1.DockerContainerControlRequest
-	37, // 12: sm.agent.v1.ActionRequest.docker_logs:type_name -> sm.agent.v1.DockerLogsRequest
-	40, // 13: sm.agent.v1.ActionRequest.docker_stats:type_name -> sm.agent.v1.DockerStatsRequest
-	43, // 14: sm.agent.v1.ActionRequest.docker_image_list:type_name -> sm.agent.v1.DockerImageListRequest
-	46, // 15: sm.agent.v1.ActionRequest.docker_volume_list:type_name -> sm.agent.v1.DockerVolumeListRequest
-	49, // 16: sm.agent.v1.ActionRequest.docker_network_list:type_name -> sm.agent.v1.DockerNetworkListRequest
-	52, // 17: sm.agent.v1.ActionRequest.docker_prune:type_name -> sm.agent.v1.DockerPruneRequest
-	0,  // 18: sm.agent.v1.CommandResult.status:type_name -> sm.agent.v1.CommandStatus
-	11, // 19: sm.agent.v1.CommandResult.result:type_name -> sm.agent.v1.ActionResult
-	13, // 20: sm.agent.v1.ActionResult.system_info:type_name -> sm.agent.v1.SystemInfoResult
-	16, // 21: sm.agent.v1.ActionResult.service_list:type_name -> sm.agent.v1.ServiceListResult
-	19, // 22: sm.agent.v1.ActionResult.service_control:type_name -> sm.agent.v1.ServiceControlResult
-	21, // 23: sm.agent.v1.ActionResult.process_list:type_name -> sm.agent.v1.ProcessListResult
-	24, // 24: sm.agent.v1.ActionResult.process_signal:type_name -> sm.agent.v1.ProcessSignalResult
-	26, // 25: sm.agent.v1.ActionResult.log_query:type_name -> sm.agent.v1.LogQueryResult
-	29, // 26: sm.agent.v1.ActionResult.auth_log:type_name -> sm.agent.v1.AuthLogResult
-	32, // 27: sm.agent.v1.ActionResult.docker_container_list:type_name -> sm.agent.v1.DockerContainerListResult
-	36, // 28: sm.agent.v1.ActionResult.docker_container_control:type_name -> sm.agent.v1.DockerContainerControlResult
-	38, // 29: sm.agent.v1.ActionResult.docker_logs:type_name -> sm.agent.v1.DockerLogsResult
-	41, // 30: sm.agent.v1.ActionResult.docker_stats:type_name -> sm.agent.v1.DockerStatsResult
-	44, // 31: sm.agent.v1.ActionResult.docker_image_list:type_name -> sm.agent.v1.DockerImageListResult
-	47, // 32: sm.agent.v1.ActionResult.docker_volume_list:type_name -> sm.agent.v1.DockerVolumeListResult
-	50, // 33: sm.agent.v1.ActionResult.docker_network_list:type_name -> sm.agent.v1.DockerNetworkListResult
-	53, // 34: sm.agent.v1.ActionResult.docker_prune:type_name -> sm.agent.v1.DockerPruneResult
-	14, // 35: sm.agent.v1.SystemInfoResult.filesystems:type_name -> sm.agent.v1.Filesystem
-	17, // 36: sm.agent.v1.ServiceListResult.units:type_name -> sm.agent.v1.ServiceUnit
-	1,  // 37: sm.agent.v1.ServiceControlRequest.operation:type_name -> sm.agent.v1.ServiceOperation
-	17, // 38: sm.agent.v1.ServiceControlResult.unit:type_name -> sm.agent.v1.ServiceUnit
-	2,  // 39: sm.agent.v1.ProcessListRequest.sort:type_name -> sm.agent.v1.ProcessSort
-	22, // 40: sm.agent.v1.ProcessListResult.processes:type_name -> sm.agent.v1.Process
-	3,  // 41: sm.agent.v1.ProcessSignalRequest.signal:type_name -> sm.agent.v1.Signal
-	27, // 42: sm.agent.v1.LogQueryResult.entries:type_name -> sm.agent.v1.LogEntry
-	56, // 43: sm.agent.v1.LogEntry.time:type_name -> google.protobuf.Timestamp
-	30, // 44: sm.agent.v1.AuthLogResult.events:type_name -> sm.agent.v1.AuthEvent
-	56, // 45: sm.agent.v1.AuthEvent.time:type_name -> google.protobuf.Timestamp
-	4,  // 46: sm.agent.v1.AuthEvent.kind:type_name -> sm.agent.v1.AuthEventKind
-	33, // 47: sm.agent.v1.DockerContainerListResult.containers:type_name -> sm.agent.v1.DockerContainer
-	56, // 48: sm.agent.v1.DockerContainer.created:type_name -> google.protobuf.Timestamp
-	34, // 49: sm.agent.v1.DockerContainer.ports:type_name -> sm.agent.v1.DockerPort
-	5,  // 50: sm.agent.v1.DockerContainerControlRequest.operation:type_name -> sm.agent.v1.DockerContainerOperation
-	33, // 51: sm.agent.v1.DockerContainerControlResult.container:type_name -> sm.agent.v1.DockerContainer
-	39, // 52: sm.agent.v1.DockerLogsResult.lines:type_name -> sm.agent.v1.DockerLogLine
-	56, // 53: sm.agent.v1.DockerLogLine.time:type_name -> google.protobuf.Timestamp
-	42, // 54: sm.agent.v1.DockerStatsResult.stats:type_name -> sm.agent.v1.DockerContainerStats
-	45, // 55: sm.agent.v1.DockerImageListResult.images:type_name -> sm.agent.v1.DockerImage
-	56, // 56: sm.agent.v1.DockerImage.created:type_name -> google.protobuf.Timestamp
-	48, // 57: sm.agent.v1.DockerVolumeListResult.volumes:type_name -> sm.agent.v1.DockerVolume
-	51, // 58: sm.agent.v1.DockerNetworkListResult.networks:type_name -> sm.agent.v1.DockerNetwork
-	6,  // 59: sm.agent.v1.DockerPruneRequest.target:type_name -> sm.agent.v1.DockerPruneTarget
-	8,  // 60: sm.agent.v1.ExecuteRequest.command:type_name -> sm.agent.v1.Command
-	10, // 61: sm.agent.v1.ExecuteResponse.result:type_name -> sm.agent.v1.CommandResult
-	54, // 62: sm.agent.v1.PrivilegedService.Execute:input_type -> sm.agent.v1.ExecuteRequest
-	55, // 63: sm.agent.v1.PrivilegedService.Execute:output_type -> sm.agent.v1.ExecuteResponse
-	63, // [63:64] is the sub-list for method output_type
-	62, // [62:63] is the sub-list for method input_type
-	62, // [62:62] is the sub-list for extension type_name
-	62, // [62:62] is the sub-list for extension extendee
-	0,  // [0:62] is the sub-list for field type_name
+	66, // 0: sm.agent.v1.CommandEnvelope.issued_at:type_name -> google.protobuf.Timestamp
+	66, // 1: sm.agent.v1.CommandEnvelope.expires_at:type_name -> google.protobuf.Timestamp
+	10, // 2: sm.agent.v1.CommandEnvelope.request:type_name -> sm.agent.v1.ActionRequest
+	13, // 3: sm.agent.v1.ActionRequest.system_info:type_name -> sm.agent.v1.SystemInfoRequest
+	16, // 4: sm.agent.v1.ActionRequest.service_list:type_name -> sm.agent.v1.ServiceListRequest
+	19, // 5: sm.agent.v1.ActionRequest.service_control:type_name -> sm.agent.v1.ServiceControlRequest
+	21, // 6: sm.agent.v1.ActionRequest.process_list:type_name -> sm.agent.v1.ProcessListRequest
+	24, // 7: sm.agent.v1.ActionRequest.process_signal:type_name -> sm.agent.v1.ProcessSignalRequest
+	26, // 8: sm.agent.v1.ActionRequest.log_query:type_name -> sm.agent.v1.LogQueryRequest
+	29, // 9: sm.agent.v1.ActionRequest.auth_log:type_name -> sm.agent.v1.AuthLogRequest
+	32, // 10: sm.agent.v1.ActionRequest.docker_container_list:type_name -> sm.agent.v1.DockerContainerListRequest
+	36, // 11: sm.agent.v1.ActionRequest.docker_container_control:type_name -> sm.agent.v1.DockerContainerControlRequest
+	38, // 12: sm.agent.v1.ActionRequest.docker_logs:type_name -> sm.agent.v1.DockerLogsRequest
+	41, // 13: sm.agent.v1.ActionRequest.docker_stats:type_name -> sm.agent.v1.DockerStatsRequest
+	44, // 14: sm.agent.v1.ActionRequest.docker_image_list:type_name -> sm.agent.v1.DockerImageListRequest
+	47, // 15: sm.agent.v1.ActionRequest.docker_volume_list:type_name -> sm.agent.v1.DockerVolumeListRequest
+	50, // 16: sm.agent.v1.ActionRequest.docker_network_list:type_name -> sm.agent.v1.DockerNetworkListRequest
+	53, // 17: sm.agent.v1.ActionRequest.docker_prune:type_name -> sm.agent.v1.DockerPruneRequest
+	55, // 18: sm.agent.v1.ActionRequest.time_status:type_name -> sm.agent.v1.TimeStatusRequest
+	57, // 19: sm.agent.v1.ActionRequest.time_set_timezone:type_name -> sm.agent.v1.TimeSetTimezoneRequest
+	58, // 20: sm.agent.v1.ActionRequest.time_set_ntp:type_name -> sm.agent.v1.TimeSetNTPRequest
+	59, // 21: sm.agent.v1.ActionRequest.swap_status:type_name -> sm.agent.v1.SwapStatusRequest
+	62, // 22: sm.agent.v1.ActionRequest.swap_configure:type_name -> sm.agent.v1.SwapConfigureRequest
+	63, // 23: sm.agent.v1.ActionRequest.swap_set_swappiness:type_name -> sm.agent.v1.SwapSetSwappinessRequest
+	0,  // 24: sm.agent.v1.CommandResult.status:type_name -> sm.agent.v1.CommandStatus
+	12, // 25: sm.agent.v1.CommandResult.result:type_name -> sm.agent.v1.ActionResult
+	14, // 26: sm.agent.v1.ActionResult.system_info:type_name -> sm.agent.v1.SystemInfoResult
+	17, // 27: sm.agent.v1.ActionResult.service_list:type_name -> sm.agent.v1.ServiceListResult
+	20, // 28: sm.agent.v1.ActionResult.service_control:type_name -> sm.agent.v1.ServiceControlResult
+	22, // 29: sm.agent.v1.ActionResult.process_list:type_name -> sm.agent.v1.ProcessListResult
+	25, // 30: sm.agent.v1.ActionResult.process_signal:type_name -> sm.agent.v1.ProcessSignalResult
+	27, // 31: sm.agent.v1.ActionResult.log_query:type_name -> sm.agent.v1.LogQueryResult
+	30, // 32: sm.agent.v1.ActionResult.auth_log:type_name -> sm.agent.v1.AuthLogResult
+	33, // 33: sm.agent.v1.ActionResult.docker_container_list:type_name -> sm.agent.v1.DockerContainerListResult
+	37, // 34: sm.agent.v1.ActionResult.docker_container_control:type_name -> sm.agent.v1.DockerContainerControlResult
+	39, // 35: sm.agent.v1.ActionResult.docker_logs:type_name -> sm.agent.v1.DockerLogsResult
+	42, // 36: sm.agent.v1.ActionResult.docker_stats:type_name -> sm.agent.v1.DockerStatsResult
+	45, // 37: sm.agent.v1.ActionResult.docker_image_list:type_name -> sm.agent.v1.DockerImageListResult
+	48, // 38: sm.agent.v1.ActionResult.docker_volume_list:type_name -> sm.agent.v1.DockerVolumeListResult
+	51, // 39: sm.agent.v1.ActionResult.docker_network_list:type_name -> sm.agent.v1.DockerNetworkListResult
+	54, // 40: sm.agent.v1.ActionResult.docker_prune:type_name -> sm.agent.v1.DockerPruneResult
+	56, // 41: sm.agent.v1.ActionResult.time_status:type_name -> sm.agent.v1.TimeStatusResult
+	56, // 42: sm.agent.v1.ActionResult.time_set_timezone:type_name -> sm.agent.v1.TimeStatusResult
+	56, // 43: sm.agent.v1.ActionResult.time_set_ntp:type_name -> sm.agent.v1.TimeStatusResult
+	60, // 44: sm.agent.v1.ActionResult.swap_status:type_name -> sm.agent.v1.SwapStatusResult
+	60, // 45: sm.agent.v1.ActionResult.swap_configure:type_name -> sm.agent.v1.SwapStatusResult
+	60, // 46: sm.agent.v1.ActionResult.swap_set_swappiness:type_name -> sm.agent.v1.SwapStatusResult
+	15, // 47: sm.agent.v1.SystemInfoResult.filesystems:type_name -> sm.agent.v1.Filesystem
+	18, // 48: sm.agent.v1.ServiceListResult.units:type_name -> sm.agent.v1.ServiceUnit
+	1,  // 49: sm.agent.v1.ServiceControlRequest.operation:type_name -> sm.agent.v1.ServiceOperation
+	18, // 50: sm.agent.v1.ServiceControlResult.unit:type_name -> sm.agent.v1.ServiceUnit
+	2,  // 51: sm.agent.v1.ProcessListRequest.sort:type_name -> sm.agent.v1.ProcessSort
+	23, // 52: sm.agent.v1.ProcessListResult.processes:type_name -> sm.agent.v1.Process
+	3,  // 53: sm.agent.v1.ProcessSignalRequest.signal:type_name -> sm.agent.v1.Signal
+	28, // 54: sm.agent.v1.LogQueryResult.entries:type_name -> sm.agent.v1.LogEntry
+	66, // 55: sm.agent.v1.LogEntry.time:type_name -> google.protobuf.Timestamp
+	31, // 56: sm.agent.v1.AuthLogResult.events:type_name -> sm.agent.v1.AuthEvent
+	66, // 57: sm.agent.v1.AuthEvent.time:type_name -> google.protobuf.Timestamp
+	4,  // 58: sm.agent.v1.AuthEvent.kind:type_name -> sm.agent.v1.AuthEventKind
+	34, // 59: sm.agent.v1.DockerContainerListResult.containers:type_name -> sm.agent.v1.DockerContainer
+	66, // 60: sm.agent.v1.DockerContainer.created:type_name -> google.protobuf.Timestamp
+	35, // 61: sm.agent.v1.DockerContainer.ports:type_name -> sm.agent.v1.DockerPort
+	5,  // 62: sm.agent.v1.DockerContainerControlRequest.operation:type_name -> sm.agent.v1.DockerContainerOperation
+	34, // 63: sm.agent.v1.DockerContainerControlResult.container:type_name -> sm.agent.v1.DockerContainer
+	40, // 64: sm.agent.v1.DockerLogsResult.lines:type_name -> sm.agent.v1.DockerLogLine
+	66, // 65: sm.agent.v1.DockerLogLine.time:type_name -> google.protobuf.Timestamp
+	43, // 66: sm.agent.v1.DockerStatsResult.stats:type_name -> sm.agent.v1.DockerContainerStats
+	46, // 67: sm.agent.v1.DockerImageListResult.images:type_name -> sm.agent.v1.DockerImage
+	66, // 68: sm.agent.v1.DockerImage.created:type_name -> google.protobuf.Timestamp
+	49, // 69: sm.agent.v1.DockerVolumeListResult.volumes:type_name -> sm.agent.v1.DockerVolume
+	52, // 70: sm.agent.v1.DockerNetworkListResult.networks:type_name -> sm.agent.v1.DockerNetwork
+	6,  // 71: sm.agent.v1.DockerPruneRequest.target:type_name -> sm.agent.v1.DockerPruneTarget
+	66, // 72: sm.agent.v1.TimeStatusResult.time:type_name -> google.protobuf.Timestamp
+	61, // 73: sm.agent.v1.SwapStatusResult.devices:type_name -> sm.agent.v1.SwapDevice
+	7,  // 74: sm.agent.v1.SwapConfigureRequest.operation:type_name -> sm.agent.v1.SwapOperation
+	9,  // 75: sm.agent.v1.ExecuteRequest.command:type_name -> sm.agent.v1.Command
+	11, // 76: sm.agent.v1.ExecuteResponse.result:type_name -> sm.agent.v1.CommandResult
+	64, // 77: sm.agent.v1.PrivilegedService.Execute:input_type -> sm.agent.v1.ExecuteRequest
+	65, // 78: sm.agent.v1.PrivilegedService.Execute:output_type -> sm.agent.v1.ExecuteResponse
+	78, // [78:79] is the sub-list for method output_type
+	77, // [77:78] is the sub-list for method input_type
+	77, // [77:77] is the sub-list for extension type_name
+	77, // [77:77] is the sub-list for extension extendee
+	0,  // [0:77] is the sub-list for field type_name
 }
 
 func init() { file_sm_agent_v1_actions_proto_init() }
@@ -4461,6 +5300,12 @@ func file_sm_agent_v1_actions_proto_init() {
 		(*ActionRequest_DockerVolumeList)(nil),
 		(*ActionRequest_DockerNetworkList)(nil),
 		(*ActionRequest_DockerPrune)(nil),
+		(*ActionRequest_TimeStatus)(nil),
+		(*ActionRequest_TimeSetTimezone)(nil),
+		(*ActionRequest_TimeSetNtp)(nil),
+		(*ActionRequest_SwapStatus)(nil),
+		(*ActionRequest_SwapConfigure)(nil),
+		(*ActionRequest_SwapSetSwappiness)(nil),
 	}
 	file_sm_agent_v1_actions_proto_msgTypes[4].OneofWrappers = []any{
 		(*ActionResult_SystemInfo)(nil),
@@ -4478,6 +5323,12 @@ func file_sm_agent_v1_actions_proto_init() {
 		(*ActionResult_DockerVolumeList)(nil),
 		(*ActionResult_DockerNetworkList)(nil),
 		(*ActionResult_DockerPrune)(nil),
+		(*ActionResult_TimeStatus)(nil),
+		(*ActionResult_TimeSetTimezone)(nil),
+		(*ActionResult_TimeSetNtp)(nil),
+		(*ActionResult_SwapStatus)(nil),
+		(*ActionResult_SwapConfigure)(nil),
+		(*ActionResult_SwapSetSwappiness)(nil),
 	}
 	file_sm_agent_v1_actions_proto_msgTypes[18].OneofWrappers = []any{}
 	type x struct{}
@@ -4485,8 +5336,8 @@ func file_sm_agent_v1_actions_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_sm_agent_v1_actions_proto_rawDesc), len(file_sm_agent_v1_actions_proto_rawDesc)),
-			NumEnums:      7,
-			NumMessages:   49,
+			NumEnums:      8,
+			NumMessages:   58,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

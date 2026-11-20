@@ -69,6 +69,8 @@ type Server struct {
 	log        *slog.Logger
 	host       modules.Host
 	systemd    modules.Systemd
+	timedate   modules.Timedate
+	swapper    *modules.Swapper
 	docker     *modules.Docker
 	kill       func(int, syscall.Signal) error
 	allowedUID uint32
@@ -81,8 +83,10 @@ type Server struct {
 // Options overrides system access in tests.
 type Options struct {
 	Host    *modules.Host
-	Systemd modules.Systemd
-	Docker  *modules.Docker
+	Systemd  modules.Systemd
+	Docker   *modules.Docker
+	Timedate modules.Timedate
+	Swapper  *modules.Swapper
 	Kill    func(int, syscall.Signal) error
 	// AllowedUID overrides the lookup of Config.AgentUser.
 	AllowedUID *uint32
@@ -106,6 +110,14 @@ func New(cfg Config, log *slog.Logger, opts Options) (*Server, error) {
 	s.docker = modules.NewDocker(cfg.DockerSocket)
 	if opts.Docker != nil {
 		s.docker = opts.Docker
+	}
+	s.timedate = modules.DBusTimedate{}
+	if opts.Timedate != nil {
+		s.timedate = opts.Timedate
+	}
+	s.swapper = modules.NewSwapper(s.host, modules.DBusSystemd{})
+	if opts.Swapper != nil {
+		s.swapper = opts.Swapper
 	}
 	s.trustedUID = opts.TrustedUID
 	if opts.AllowedUID != nil {
@@ -304,6 +316,26 @@ func (s *Server) run(ctx context.Context, req *agentv1.ActionRequest, cred *peer
 			return nil, err
 		}
 		return &agentv1.ActionResult{Result: &agentv1.ActionResult_ProcessSignal{ProcessSignal: &agentv1.ProcessSignalResult{}}}, nil
+	case *agentv1.ActionRequest_TimeSetTimezone:
+		r, err := modules.SetTimezone(ctx, s.timedate, a.TimeSetTimezone)
+		return wrap(r, err, func(r *agentv1.TimeStatusResult) *agentv1.ActionResult {
+			return &agentv1.ActionResult{Result: &agentv1.ActionResult_TimeSetTimezone{TimeSetTimezone: r}}
+		})
+	case *agentv1.ActionRequest_TimeSetNtp:
+		r, err := modules.SetNTP(ctx, s.timedate, a.TimeSetNtp)
+		return wrap(r, err, func(r *agentv1.TimeStatusResult) *agentv1.ActionResult {
+			return &agentv1.ActionResult{Result: &agentv1.ActionResult_TimeSetNtp{TimeSetNtp: r}}
+		})
+	case *agentv1.ActionRequest_SwapConfigure:
+		r, err := s.swapper.Configure(ctx, a.SwapConfigure)
+		return wrap(r, err, func(r *agentv1.SwapStatusResult) *agentv1.ActionResult {
+			return &agentv1.ActionResult{Result: &agentv1.ActionResult_SwapConfigure{SwapConfigure: r}}
+		})
+	case *agentv1.ActionRequest_SwapSetSwappiness:
+		r, err := s.swapper.SetSwappiness(ctx, a.SwapSetSwappiness)
+		return wrap(r, err, func(r *agentv1.SwapStatusResult) *agentv1.ActionResult {
+			return &agentv1.ActionResult{Result: &agentv1.ActionResult_SwapSetSwappiness{SwapSetSwappiness: r}}
+		})
 	case *agentv1.ActionRequest_DockerContainerList:
 		r, err := s.docker.ListContainers(ctx, a.DockerContainerList)
 		return wrap(r, err, func(r *agentv1.DockerContainerListResult) *agentv1.ActionResult {

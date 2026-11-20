@@ -15,6 +15,13 @@ Environment=SM_PRIVD_AGENT_USER=smagent
 
 RuntimeDirectory=sm-agent
 RuntimeDirectoryMode=0750
+# Swap: the helper writes only its state directory, /var/lib/smswap (the swapfile is
+# 0600). The package ships the swap unit and links /etc/sysctl.d/90-sm-swappiness.conf
+# into it; the helper enables and starts the unit over D-Bus, so systemd does swapon and
+# applies sysctl settings. No CAP_SYS_ADMIN, no write access to /etc, /proc/sys stays
+# read-only.
+StateDirectory=smswap
+StateDirectoryMode=0755
 # No network namespace access: only filesystem UNIX sockets work (its own, D-Bus, and
 # the Docker daemon's /run/docker.sock for docker.* actions; SM_PRIVD_DOCKER_SOCKET
 # changes the path). The agent itself never gets Docker access: it is root-equivalent.

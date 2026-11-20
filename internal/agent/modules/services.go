@@ -166,6 +166,16 @@ func (d DBusSystemd) Control(ctx context.Context, unit string, op agentv1.Servic
 	}
 }
 
+// Reload implements UnitManager: it makes systemd re-read unit files.
+func (d DBusSystemd) Reload(ctx context.Context) error {
+	c, err := d.conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer c.Close()
+	return c.ReloadContext(ctx)
+}
+
 func baseName(p string) string {
 	if i := strings.LastIndexByte(p, '/'); i >= 0 {
 		return p[i+1:]

@@ -46,6 +46,7 @@ type env struct {
 	sd       *fakeSystemd
 	client   *Client
 	cfg      Config
+	td       *fakeTimedate
 	// dockerCalls counts requests that reached the fake Docker daemon.
 	dockerCalls *atomic.Int32
 }
@@ -72,6 +73,7 @@ func newEnvOwner(t *testing.T, allowedUID, trustedUID uint32) *env {
 	// The test runs unprivileged, so a given UID stands in for root as the trust owner.
 	owner := trustedUID
 	sd := &fakeSystemd{}
+	td := &fakeTimedate{}
 	var dockerCalls atomic.Int32
 	daemon := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		dockerCalls.Add(1)
@@ -86,7 +88,7 @@ func newEnvOwner(t *testing.T, allowedUID, trustedUID uint32) *env {
 	}))
 	t.Cleanup(daemon.Close)
 	srv, err := New(cfg, slog.New(slog.DiscardHandler), Options{
-		Systemd: sd, AllowedUID: &allowedUID, TrustedUID: &owner, Docker: modules.NewDockerHTTP(daemon.Client(), daemon.URL),
+		Systemd: sd, AllowedUID: &allowedUID, TrustedUID: &owner, Timedate: td, Docker: modules.NewDockerHTTP(daemon.Client(), daemon.URL),
 		Kill: func(int, syscall.Signal) error { return nil },
 	})
 	if err != nil {
@@ -100,7 +102,7 @@ func newEnvOwner(t *testing.T, allowedUID, trustedUID uint32) *env {
 	done := make(chan struct{})
 	go func() { _ = srv.Serve(ctx, ln); close(done) }()
 	t.Cleanup(func() { cancel(); <-done })
-	return &env{signer: signer, serverID: id, sd: sd, client: NewClient(cfg.Socket), dockerCalls: &dockerCalls, cfg: cfg}
+	return &env{signer: signer, serverID: id, sd: sd, client: NewClient(cfg.Socket), dockerCalls: &dockerCalls, cfg: cfg, td: td}
 }
 
 func restart() *agentv1.ActionRequest {
@@ -399,4 +401,73 @@ func trustedTempDir(t *testing.T) string {
 		}
 	}
 	return dir
+}
+
+type fakeTimedate struct {
+	mu    sync.Mutex
+	zones []string
+}
+
+func (f *fakeTimedate) Status(context.Context) (*agentv1.TimeStatusResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	tz := "UTC"
+	if len(f.zones) > 0 {
+		tz = f.zones[len(f.zones)-1]
+	}
+	return &agentv1.TimeStatusResult{Timezone: tz}, nil
+}
+
+func (f *fakeTimedate) SetTimezone(_ context.Context, tz string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.zones = append(f.zones, tz)
+	return nil
+}
+
+func (f *fakeTimedate) SetNTP(context.Context, bool) error { return nil }
+
+func TestTimeAndSwapInHelper(t *testing.T) {
+	e := newEnv(t, uid())
+	exec := func(req *agentv1.ActionRequest) *agentv1.CommandResult {
+		t.Helper()
+		cmd, err := e.signer.Sign(uuid.New(), e.serverID, req, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, err := e.client.Execute(context.Background(), cmd)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res
+	}
+	tz := func(z string) *agentv1.ActionRequest {
+		return &agentv1.ActionRequest{Action: &agentv1.ActionRequest_TimeSetTimezone{TimeSetTimezone: &agentv1.TimeSetTimezoneRequest{Timezone: z}}}
+	}
+	if res := exec(tz("Asia/Dhaka")); res.GetStatus() != agentv1.CommandStatus_COMMAND_STATUS_SUCCEEDED ||
+		res.GetResult().GetTimeSetTimezone().GetTimezone() != "Asia/Dhaka" {
+		t.Fatalf("set timezone: %v", res)
+	}
+	// A validly signed but invalid request is rejected by the helper's own checks.
+	if res := exec(tz("../../etc/shadow")); res.GetStatus() != agentv1.CommandStatus_COMMAND_STATUS_REJECTED {
+		t.Fatalf("bad zone: %v", res)
+	}
+	swappiness := &agentv1.ActionRequest{Action: &agentv1.ActionRequest_SwapSetSwappiness{SwapSetSwappiness: &agentv1.SwapSetSwappinessRequest{Swappiness: 101}}}
+	if res := exec(swappiness); res.GetStatus() != agentv1.CommandStatus_COMMAND_STATUS_REJECTED {
+		t.Fatalf("swappiness 101: %v", res)
+	}
+	// Read-only actions run in the agent; the helper refuses them.
+	for _, req := range []*agentv1.ActionRequest{
+		{Action: &agentv1.ActionRequest_TimeStatus{TimeStatus: &agentv1.TimeStatusRequest{}}},
+		{Action: &agentv1.ActionRequest_SwapStatus{SwapStatus: &agentv1.SwapStatusRequest{}}},
+	} {
+		if res := exec(req); res.GetStatus() != agentv1.CommandStatus_COMMAND_STATUS_REJECTED || !strings.Contains(res.GetError(), "not a privileged action") {
+			t.Fatalf("read action in helper: %v", res)
+		}
+	}
+	e.td.mu.Lock()
+	defer e.td.mu.Unlock()
+	if len(e.td.zones) != 1 {
+		t.Fatalf("timedated calls %v", e.td.zones)
+	}
 }

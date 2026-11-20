@@ -9,7 +9,10 @@ import (
 	agentv1 "github.com/monirujjaman-dev/server-manager/gen/sm/agent/v1"
 )
 
-type fsUsage struct{ total, avail, inodes, inodesFree uint64 }
+type fsUsage struct {
+	total, avail, inodes, inodesFree uint64
+	fsType                           int64 // statfs f_type magic
+}
 
 func statfs(path string) (fsUsage, error) {
 	var st unix.Statfs_t
@@ -17,7 +20,7 @@ func statfs(path string) (fsUsage, error) {
 		return fsUsage{}, err
 	}
 	bs := uint64(st.Bsize) //nolint:gosec // block size is positive
-	return fsUsage{total: st.Blocks * bs, avail: st.Bavail * bs, inodes: st.Files, inodesFree: st.Ffree}, nil
+	return fsUsage{total: st.Blocks * bs, avail: st.Bavail * bs, inodes: st.Files, inodesFree: st.Ffree, fsType: int64(st.Type)}, nil //nolint:unconvert // Type is int32 on some arches
 }
 
 func fileUID(fi os.FileInfo) (uint32, bool) {
