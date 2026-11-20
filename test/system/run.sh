@@ -152,8 +152,11 @@ for d in $distros; do
     check "start again" smctl services start "$d" sm-test
 
     check "journal query finds the unit's output" retry 20 sh -c "docker exec sm-cp smctl logs $d --unit sm-test --since 10m | grep -q 'sm-test started'"
-    docker exec "$name" sudo -n true
-    check "sudo use shows up in logins" retry 20 sh -c "docker exec sm-cp smctl logins $d --since 10m | grep -q 'sudo'"
+    # A record in sudo's exact format, written to journald under the sudo identifier.
+    # (Running sudo itself depends on each image's PAM setup, e.g. SSSD on Rocky.)
+    check "write a sudo record to the journal" docker exec "$name" logger -t sudo \
+        "    root : TTY=pts/0 ; PWD=/root ; USER=root ; COMMAND=/usr/bin/systemctl status sm-test"
+    check "sudo use shows up in logins" retry 20 sh -c "docker exec sm-cp smctl logins $d --since 10m | grep -q 'sudo .*systemctl status sm-test'"
 
     pid="$(docker exec "$name" sh -c 'nohup sleep 600 >/dev/null 2>&1 & echo $!')"
     start="$(docker exec "$name" awk '{print $22}' "/proc/$pid/stat")"
