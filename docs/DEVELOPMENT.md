@@ -156,3 +156,20 @@ release. See [INSTALL.md](INSTALL.md) for installing from a release.
 - Every new dependency needs a reason in the pull request description.
 - Security-relevant code (`internal/pki`, `internal/server/gateway`, future `privd`, `auth`,
   `rbac`) needs tests for the rejection paths, not only the happy path.
+
+## Claude Code
+
+The repository is configured for [Claude Code](https://code.claude.com/docs):
+
+| File | Purpose |
+|------|---------|
+| `CLAUDE.md` | Project overview, commands, security invariants and conventions loaded into every session |
+| `.claude/settings.json` | Pre-approved build/test/lint commands; denies reading `*.key`, `.env` and session files and force pushes; a PostToolUse hook that gofmt's Go files after each edit |
+| `.claude/skills/add-action` | Step-by-step checklist for adding a typed agent action (`/add-action`) |
+| `.claude/skills/system-test` | Running the package system tests (`/system-test`) |
+| `.claude/agents/security-reviewer.md` | Subagent that reviews a diff against the security invariants |
+
+The formatting hook is a small Go program (`internal/devtools/gofmthook`), so it needs
+only Go and works the same on Windows, macOS and Linux (on Windows, Claude Code runs hooks
+with Git Bash). Put personal overrides in `.claude/settings.local.json`, which is ignored by
+Git. Review the hooks with `/hooks` inside Claude Code.

@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(make build)",
+      "Bash(make test)",
+      "Bash(make lint)",
+      "Bash(make vuln)",
+      "Bash(make generate)",
+      "Bash(make check-generated)",
+      "Bash(make packages)",
+      "Bash(make system-test)",
+      "Bash(make help)",
+      "Bash(make dev-*)",
+      "Bash(go build *)",
+      "Bash(go test *)",
+      "Bash(go vet *)",
+      "Bash(go mod tidy)",
+      "Bash(go run ./internal/devtools/*)",
+      "Bash(go tool -modfile=tools/go.mod buf *)",
+      "Bash(go tool -modfile=tools/go.mod sqlc *)",
+      "Bash(go tool -modfile=tools/go.mod govulncheck *)",
+      "Bash(gofmt *)",
+      "Bash(golangci-lint run *)",
+      "Bash(shellcheck *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git branch *)"
+    ],
+    "deny": [
+      "Read(**/*.key)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/session.json)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git reset --hard *)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && go run ./internal/devtools/gofmthook",
+            "timeout": 60,
+            "statusMessage": "gofmt"
+          }
+        ]
+      }
+    ]
+  }
+}
